@@ -1,8 +1,17 @@
-# 🎮 Steam Key 价格监控系统
+# 🎮 Steam Key 价格监控系统 v2.0
 
-实时监控 Steam Key 价格走势，支持多游戏监控、历史数据分析和价格趋势图表展示。
+实时监控 Steam Key 价格走势，支持多游戏监控、SQLite 数据存储、多维度数据分析和价格趋势图表展示。
 
-## 快速开始
+## ✨ 功能特性
+
+- 📊 **实时价格监控** - 自动采集最低价、平均价、最高价、卖家数、库存量
+- 💾 **SQLite 数据存储** - 高性能数据库，支持最长一年数据保留
+- ⚙️ **后台配置管理** - 可视化设置采集频率、数据保留期限、Access Token
+- 📈 **多维度数据分析** - 按天/周/月分析、价格分布图、波动分析
+- 🎯 **多游戏支持** - 同时监控多个游戏的价格走势
+- 💡 **智能建议** - 基于历史数据提供购买建议
+
+## 🚀 快速开始
 
 ```bash
 # 安装依赖
@@ -16,80 +25,72 @@ npm start
 
 ---
 
-## 配置说明
+## ⚙️ 后台配置
 
-所有配置都在 `server.js` 文件中，以下是主要配置项：
+点击页面右上角的 **「⚙️ 设置」** 按钮，可以配置：
 
-### 1. 服务端口
+### 采集配置
 
-```javascript
-// server.js 第 9 行
-const PORT = 3000;
-```
+| 配置项       | 范围        | 说明                     |
+| ------------ | ----------- | ------------------------ |
+| 采集间隔     | 1-1440 分钟 | 自动采集数据的时间间隔   |
+| 数据保留天数 | 1-365 天    | 超过期限的数据会自动清理 |
 
-### 2. 自动采集间隔
+### API 配置
 
-```javascript
-// server.js 第 320-327 行
-let cronJob = cron.schedule('*/10 * * * *', () => {
-  console.log('=== 定时采集任务开始 ===');
-  collectAllPrices();
-}, {
-  scheduled: true,
-  timezone: "Asia/Shanghai"
-});
-```
+| 配置项       | 说明                               |
+| ------------ | ---------------------------------- |
+| Access Token | Steampy API 访问令牌，失效时可更新 |
 
-**Cron 表达式说明：**
+### 数据库状态
 
-| 表达式 | 含义 |
-|--------|------|
-| `*/10 * * * *` | 每10分钟 |
-| `*/30 * * * *` | 每30分钟 |
-| `0 * * * *` | 每小时整点 |
-| `0 */2 * * *` | 每2小时 |
-| `0 0 * * *` | 每天零点 |
-
-修改 `'*/10 * * * *'` 为你需要的间隔即可。
-
-### 3. API 配置
-
-```javascript
-// server.js 第 53-63 行
-const API_CONFIG = {
-  host: 'steampy.com',
-  basePath: '/xboot/steamKeySale/listSale',
-  headers: {
-    'User-Agent': 'APPAPK',
-    'Connection': 'Keep-Alive',
-    'Accept-Encoding': 'identity',
-    'accessToken': '532d4db7b63649048d6b0f3f14f942c2'  // 如果 token 失效需要更新
-  }
-};
-```
-
-### 4. 数据保留时间
-
-```javascript
-// server.js 第 140-142 行
-// 保留最近30天的数据，避免文件过大
-const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-db.priceRecords = db.priceRecords.filter(r => r.recordedAt > thirtyDaysAgo);
-```
-
-修改 `30` 为你需要保留的天数。
+- 记录总数、监控游戏数
+- 数据库文件大小
+- 最早/最新记录时间
+- 手动清理过期数据按钮
 
 ---
 
-## 项目结构
+## 📊 数据分析功能
+
+### 价格走势图
+
+- 最低价、平均价、最高价趋势线
+- 支持 24 小时/7 天/30 天/全部 时间范围
+
+### 市场供应趋势
+
+- 卖家数量变化
+- 库存总量变化
+
+### 多维度分析
+
+- **按天分析** - 最近 30 天每日价格统计
+- **按周分析** - 最近 12 周每周价格统计
+- **按月分析** - 最近 12 个月每月价格统计
+
+### 价格分布
+
+- 价格区间分布饼图 (0-5, 5-10, 10-20, 20-50, 50+)
+
+### 统计指标
+
+- 历史最低价/最高价/均价
+- 价格波动幅度
+- 购买建议
+
+---
+
+## 📁 项目结构
 
 ```
 jiank/
-├── server.js           # 后端服务器（核心配置都在这里）
+├── server.js           # 后端服务器 (Express + SQLite)
 ├── package.json        # 项目依赖
 ├── README.md           # 项目文档
 ├── data/
-│   └── database.json   # 价格数据存储（自动生成）
+│   ├── prices.db       # SQLite 数据库 (自动生成)
+│   └── config.json     # 配置文件 (自动生成)
 └── public/
     ├── index.html      # 前端页面
     ├── style.css       # 样式文件
@@ -98,102 +99,119 @@ jiank/
 
 ---
 
-## API 接口
+## 🔌 API 接口
 
 ### 游戏管理
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/games` | 获取所有监控游戏 |
-| POST | `/api/games` | 添加游戏 `{id, name}` |
-| DELETE | `/api/games/:id` | 删除游戏 |
+| 方法   | 路径             | 说明                  |
+| ------ | ---------------- | --------------------- |
+| GET    | `/api/games`     | 获取所有监控游戏      |
+| POST   | `/api/games`     | 添加游戏 `{id, name}` |
+| DELETE | `/api/games/:id` | 删除游戏及其数据      |
 
 ### 价格数据
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/prices/:gameId?period=day` | 获取价格历史 |
-| GET | `/api/stats/:gameId?period=day` | 获取统计数据 |
+| 方法 | 路径                             | 说明               |
+| ---- | -------------------------------- | ------------------ |
+| GET  | `/api/prices/:gameId?period=day` | 获取价格历史       |
+| GET  | `/api/stats/:gameId?period=day`  | 获取统计数据       |
+| GET  | `/api/analysis/:gameId`          | 获取多维度分析数据 |
 
-`period` 可选值：`day`（24小时）、`week`（7天）、`month`（30天）、`all`（全部）
+`period` 可选值：`day`（24 小时）、`week`（7 天）、`month`（30 天）、`quarter`（90 天）、`year`（365 天）、`all`（全部）
+
+### 配置管理
+
+| 方法 | 路径            | 说明                                                         |
+| ---- | --------------- | ------------------------------------------------------------ |
+| GET  | `/api/config`   | 获取当前配置                                                 |
+| PUT  | `/api/config`   | 更新配置 `{accessToken, collectInterval, dataRetentionDays}` |
+| GET  | `/api/db-stats` | 获取数据库状态                                               |
 
 ### 采集控制
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/collect` | 手动采集所有游戏 |
+| 方法 | 路径                   | 说明             |
+| ---- | ---------------------- | ---------------- |
+| POST | `/api/collect`         | 手动采集所有游戏 |
 | POST | `/api/collect/:gameId` | 手动采集指定游戏 |
+| POST | `/api/cleanup`         | 清理过期数据     |
 
 ---
 
-## 添加新游戏
+## 🎮 添加新游戏
 
 ### 方法一：网页操作
-点击页面上的 **「+ 添加游戏」** 按钮，输入游戏ID。
+
+点击页面上的 **「+ 添加游戏」** 按钮，输入游戏 ID 和名称。
 
 ### 方法二：API 调用
+
 ```bash
 curl -X POST http://localhost:3000/api/games \
   -H "Content-Type: application/json" \
   -d '{"id": "游戏ID", "name": "游戏名称"}'
 ```
 
-### 如何获取游戏ID？
+### 如何获取游戏 ID？
+
 从 Steampy APP 的游戏详情页 URL 或接口中获取 `gameId` 参数。
 
 ---
 
-## 数据存储
-
-数据保存在 `data/database.json` 文件中，格式如下：
-
-```json
-{
-  "games": [
-    { "id": "461759890218553344", "name": "游戏名称", "createdAt": "..." }
-  ],
-  "priceRecords": [
-    {
-      "id": 1702468718808,
-      "gameId": "461759890218553344",
-      "minPrice": 3.6,
-      "avgPrice": 11.74,
-      "maxPrice": 100,
-      "stockCount": 40,
-      "sellerCount": 39,
-      "recordedAt": "2025-12-13T12:58:38.808Z"
-    }
-  ]
-}
-```
-
----
-
-## 常见问题
+## ❓ 常见问题
 
 ### Q: 如何修改采集频率？
-修改 `server.js` 第 321 行的 cron 表达式，然后重启服务。
+
+点击页面右上角「⚙️ 设置」按钮，修改「采集间隔」后保存即可，无需重启服务。
 
 ### Q: 数据文件太大怎么办？
-修改第 141 行的数据保留天数，或直接删除 `data/database.json` 重新开始。
 
-### Q: accessToken 失效怎么办？
-从 Steampy APP 抓包获取新的 token，更新 `server.js` 第 61 行。
+1. 在设置中减少「数据保留天数」
+2. 点击「🗑️ 清理过期数据」按钮
+
+### Q: Access Token 失效怎么办？
+
+1. 从 Steampy APP 抓包获取新的 Token
+2. 在设置页面的「Access Token」输入框中填入新 Token
+3. 点击「保存设置」
 
 ### Q: 如何后台运行？
+
 ```bash
-# Windows - 使用 pm2
+# 使用 pm2 (推荐)
 npm install -g pm2
 pm2 start server.js --name "steam-monitor"
+pm2 save
 
-# 或使用 nohup (Git Bash)
-nohup node server.js &
+# 查看日志
+pm2 logs steam-monitor
+
+# 停止服务
+pm2 stop steam-monitor
 ```
 
 ---
 
-## 技术栈
+## 🛠️ 技术栈
 
 - **后端**: Node.js + Express + node-cron
+- **数据库**: SQLite (sql.js)
 - **前端**: 原生 HTML/CSS/JS + Chart.js
-- **存储**: JSON 文件（轻量级，无需数据库）
+- **图表**: Chart.js + chartjs-adapter-date-fns
+
+---
+
+## 📝 更新日志
+
+### v2.0.0
+
+- ✨ 新增 SQLite 数据库存储，替换 JSON 文件
+- ✨ 新增后台配置页面，支持可视化设置
+- ✨ 新增 Access Token 在线更新功能
+- ✨ 新增多维度数据分析（按天/周/月）
+- ✨ 新增价格分布饼图
+- ✨ 数据保留期限扩展至最长一年
+- 🚀 性能优化，支持大量历史数据
+
+### v1.0.0
+
+- 🎉 初始版本，基础价格监控功能
