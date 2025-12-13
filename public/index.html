@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Steam Key 价格监控</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  </head>
+  <body>
+    <div class="container">
+      <!-- 头部 -->
+      <header class="header">
+        <h1>🎮 Steam Key 价格监控</h1>
+        <div class="header-actions">
+          <button
+            id="btn-refresh"
+            class="btn btn-primary"
+            onclick="refreshData()"
+          >
+            🔄 刷新
+          </button>
+          <button
+            id="btn-collect"
+            class="btn btn-success"
+            onclick="manualCollect()"
+          >
+            📥 采集
+          </button>
+          <button class="btn" onclick="showSettingsModal()">⚙️ 设置</button>
+        </div>
+      </header>
+
+      <!-- 游戏选择器 -->
+      <div class="card game-selector">
+        <div class="card-header">
+          <h3>📋 监控游戏</h3>
+          <button class="btn btn-sm" onclick="showAddGameModal()">
+            + 添加游戏
+          </button>
+        </div>
+        <div class="game-list" id="game-list">
+          <!-- 动态生成 -->
+        </div>
+      </div>
+
+      <!-- 时间维度选择 -->
+      <div class="card">
+        <div class="period-selector">
+          <span>时间范围：</span>
+          <button class="period-btn active" data-period="day">
+            最近24小时
+          </button>
+          <button class="period-btn" data-period="week">最近7天</button>
+          <button class="period-btn" data-period="month">最近30天</button>
+          <button class="period-btn" data-period="all">全部数据</button>
+        </div>
+      </div>
+
+      <!-- 统计卡片 -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">💰</div>
+          <div class="stat-content">
+            <div class="stat-value" id="stat-current">--</div>
+            <div class="stat-label">当前最低价</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📉</div>
+          <div class="stat-content">
+            <div class="stat-value" id="stat-lowest">--</div>
+            <div class="stat-label">历史最低价</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-content">
+            <div class="stat-value" id="stat-avg">--</div>
+            <div class="stat-label">平均最低价</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📈</div>
+          <div class="stat-content">
+            <div class="stat-value" id="stat-highest">--</div>
+            <div class="stat-label">最高最低价</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🏪</div>
+          <div class="stat-content">
+            <div class="stat-value" id="stat-sellers">--</div>
+            <div class="stat-label">当前卖家数</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📦</div>
+          <div class="stat-content">
+            <div class="stat-value" id="stat-stock">--</div>
+            <div class="stat-label">当前库存</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 价格走势图 -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <h3>📈 价格走势</h3>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="dot min"></span>最低价</span>
+            <span class="legend-item"><span class="dot avg"></span>平均价</span>
+            <span class="legend-item"><span class="dot max"></span>最高价</span>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="price-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- 卖家/库存趋势图 -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <h3>🏪 市场供应趋势</h3>
+        </div>
+        <div class="chart-container">
+          <canvas id="supply-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- 价格分布分析 -->
+      <div class="card">
+        <div class="card-header">
+          <h3>📊 价格分析</h3>
+        </div>
+        <div class="analysis-content" id="analysis-content">
+          <p class="loading">加载中...</p>
+        </div>
+      </div>
+
+      <!-- 多维度分析 -->
+      <div class="card">
+        <div class="card-header">
+          <h3>📈 多维度数据分析</h3>
+          <div class="analysis-tabs">
+            <button class="tab-btn active" data-tab="daily">按天</button>
+            <button class="tab-btn" data-tab="weekly">按周</button>
+            <button class="tab-btn" data-tab="monthly">按月</button>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="analysis-chart"></canvas>
+        </div>
+        <div class="analysis-summary" id="analysis-summary">
+          <!-- 动态生成统计摘要 -->
+        </div>
+      </div>
+
+      <!-- 价格分布图 -->
+      <div class="card">
+        <div class="card-header">
+          <h3>📊 价格区间分布</h3>
+        </div>
+        <div class="chart-container" style="height: 250px">
+          <canvas id="distribution-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- 数据记录表 -->
+      <div class="card">
+        <div class="card-header">
+          <h3>📝 采集记录</h3>
+          <span class="record-count" id="record-count">0 条记录</span>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>采集时间</th>
+                <th>最低价</th>
+                <th>平均价</th>
+                <th>最高价</th>
+                <th>卖家数</th>
+                <th>库存</th>
+              </tr>
+            </thead>
+            <tbody id="data-table-body">
+              <!-- 动态生成 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 页脚 -->
+      <footer class="footer">
+        <p>采集间隔：每10分钟 | 最后更新：<span id="last-update">--</span></p>
+      </footer>
+    </div>
+
+    <!-- 添加游戏弹窗 -->
+    <div class="modal" id="add-game-modal">
+      <div class="modal-content">
+        <h3>添加监控游戏</h3>
+        <div class="form-group">
+          <label>游戏ID</label>
+          <input
+            type="text"
+            id="input-game-id"
+            placeholder="输入游戏ID，如：461759890218553344"
+          />
+        </div>
+        <div class="form-group">
+          <label>游戏名称（可选）</label>
+          <input type="text" id="input-game-name" placeholder="输入游戏名称" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="hideAddGameModal()">取消</button>
+          <button class="btn btn-primary" onclick="addGame()">添加</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div class="modal" id="settings-modal">
+      <div class="modal-content modal-lg">
+        <h3>⚙️ 系统设置</h3>
+
+        <div class="settings-section">
+          <h4>采集配置</h4>
+          <div class="form-group">
+            <label>采集间隔（分钟）</label>
+            <input
+              type="number"
+              id="input-interval"
+              min="1"
+              max="1440"
+              value="10"
+            />
+            <small>范围：1-1440分钟（最长24小时）</small>
+          </div>
+          <div class="form-group">
+            <label>数据保留天数</label>
+            <input
+              type="number"
+              id="input-retention"
+              min="1"
+              max="365"
+              value="365"
+            />
+            <small>范围：1-365天（最长一年）</small>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4>API 配置</h4>
+          <div class="form-group">
+            <label>Access Token</label>
+            <input
+              type="text"
+              id="input-token"
+              placeholder="输入新的 Access Token"
+            />
+            <small>当前：<span id="current-token">***</span></small>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4>数据库状态</h4>
+          <div class="db-stats">
+            <div class="db-stat-item">
+              <span class="db-stat-label">记录总数</span>
+              <span class="db-stat-value" id="db-record-count">--</span>
+            </div>
+            <div class="db-stat-item">
+              <span class="db-stat-label">监控游戏</span>
+              <span class="db-stat-value" id="db-game-count">--</span>
+            </div>
+            <div class="db-stat-item">
+              <span class="db-stat-label">数据库大小</span>
+              <span class="db-stat-value" id="db-size">--</span>
+            </div>
+            <div class="db-stat-item">
+              <span class="db-stat-label">最早记录</span>
+              <span class="db-stat-value" id="db-oldest">--</span>
+            </div>
+          </div>
+          <button
+            class="btn btn-sm btn-danger"
+            onclick="cleanupData()"
+            style="margin-top: 10px"
+          >
+            🗑️ 清理过期数据
+          </button>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn" onclick="hideSettingsModal()">取消</button>
+          <button class="btn btn-primary" onclick="saveSettings()">
+            保存设置
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

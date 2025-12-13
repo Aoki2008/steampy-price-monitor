@@ -1,0 +1,4 @@
+node_modules/
+data/prices.db
+data/config.json
+.snow/

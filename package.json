@@ -1,0 +1,16 @@
+{
+  "name": "steam-key-price-monitor",
+  "version": "2.0.0",
+  "description": "Steam Key 价格监控与分析系统",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-cron": "^3.0.3",
+    "cors": "^2.8.5",
+    "sql.js": "^1.10.3"
+  }
+}
