@@ -584,6 +584,22 @@ async function loadSettings() {
       config.dataRetentionDays || 365;
     document.getElementById("current-token").textContent =
       config.accessToken || "未设置";
+
+    // PushMe 配置
+    const pushme = config.pushme || {};
+    document.getElementById("pushme-enabled").checked = pushme.enabled || false;
+    document.getElementById("current-pushme-key").textContent =
+      pushme.pushKey || "未设置";
+    document.getElementById("pushme-price-alert").checked =
+      pushme.priceAlert?.enabled || false;
+    document.getElementById("pushme-price-threshold").value =
+      pushme.priceAlert?.threshold || "";
+    document.getElementById("pushme-daily-report").checked =
+      pushme.dailyReport?.enabled || false;
+    document.getElementById("pushme-report-time").value =
+      pushme.dailyReport?.time || "20:00";
+    document.getElementById("pushme-error-alert").checked =
+      pushme.errorAlert?.enabled !== false;
   } catch (e) {
     console.error("加载配置失败:", e);
   }
@@ -616,6 +632,26 @@ async function saveSettings() {
   const body = { collectInterval: interval, dataRetentionDays: retention };
   if (token) body.accessToken = token;
 
+  // PushMe 配置
+  const pushmeKey = document.getElementById("pushme-key").value.trim();
+  body.pushme = {
+    enabled: document.getElementById("pushme-enabled").checked,
+    priceAlert: {
+      enabled: document.getElementById("pushme-price-alert").checked,
+      threshold:
+        parseFloat(document.getElementById("pushme-price-threshold").value) ||
+        0,
+    },
+    dailyReport: {
+      enabled: document.getElementById("pushme-daily-report").checked,
+      time: document.getElementById("pushme-report-time").value || "20:00",
+    },
+    errorAlert: {
+      enabled: document.getElementById("pushme-error-alert").checked,
+    },
+  };
+  if (pushmeKey) body.pushme.pushKey = pushmeKey;
+
   try {
     const res = await fetch(`${API_BASE}/api/config`, {
       method: "PUT",
@@ -627,11 +663,37 @@ async function saveSettings() {
       alert("设置已保存！");
       hideSettingsModal();
       document.getElementById("input-token").value = "";
+      document.getElementById("pushme-key").value = "";
     } else {
       alert("保存失败");
     }
   } catch (e) {
     alert("保存失败: " + e.message);
+  }
+}
+
+// PushMe 测试推送
+async function testPushMe() {
+  try {
+    const res = await fetch(`${API_BASE}/api/pushme/test`, { method: "POST" });
+    const result = await res.json();
+    if (result.success) {
+      alert("测试推送已发送！请检查手机通知");
+    } else {
+      alert("推送失败: " + (result.reason || result.error || "未知错误"));
+    }
+  } catch (e) {
+    alert("推送失败: " + e.message);
+  }
+}
+
+// 手动发送每日报告
+async function sendDailyReport() {
+  try {
+    await fetch(`${API_BASE}/api/pushme/daily-report`, { method: "POST" });
+    alert("每日报告已发送！");
+  } catch (e) {
+    alert("发送失败: " + e.message);
   }
 }
 

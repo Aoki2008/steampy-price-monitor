@@ -29,6 +29,22 @@ const DEFAULT_CONFIG = {
   dataRetentionDays: 365,
   apiHost: "steampy.com",
   apiPath: "/xboot/steamKeySale/listSale",
+  // PushMe 推送配置
+  pushme: {
+    enabled: false,
+    pushKey: "",
+    priceAlert: {
+      enabled: false,
+      threshold: 0, // 价格低于此值时推送
+    },
+    dailyReport: {
+      enabled: false,
+      time: "20:00", // 每日报告时间
+    },
+    errorAlert: {
+      enabled: true, // 采集异常时推送
+    },
+  },
 };
 
 function loadConfig() {
@@ -102,6 +118,130 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
+// ========== PushMe 推送服务 ==========
+function sendPushMe(title, content) {
+  return new Promise((resolve, reject) => {
+    if (!config.pushme?.enabled || !config.pushme?.pushKey) {
+      return resolve({ success: false, reason: "PushMe未启用或未配置" });
+    }
+
+    const postData = `title=${encodeURIComponent(
+      title
+    )}&content=${encodeURIComponent(content)}`;
+    const req = https.request(
+      {
+        hostname: "push.i-i.me",
+        path: `/?push_key=${config.pushme.pushKey}`,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Length": Buffer.byteLength(postData),
+        },
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          console.log(
+            `[PushMe] ${title} - ${res.statusCode === 200 ? "成功" : "失败"}`
+          );
+          resolve({ success: res.statusCode === 200, response: data });
+        });
+      }
+    );
+    req.on("error", (e) => {
+      console.error("[PushMe] 推送失败:", e.message);
+      resolve({ success: false, error: e.message });
+    });
+    req.setTimeout(10000, () => {
+      req.destroy();
+      resolve({ success: false, error: "超时" });
+    });
+    req.write(postData);
+    req.end();
+  });
+}
+
+// 价格变动提醒
+async function checkPriceAlert(gameId, gameName, minPrice) {
+  const alert = config.pushme?.priceAlert;
+  if (!alert?.enabled || !alert?.threshold) return;
+
+  if (minPrice <= alert.threshold) {
+    await sendPushMe(
+      `🔔 价格提醒: ${gameName}`,
+      `**${gameName}** 当前最低价 **¥${minPrice.toFixed(
+        2
+      )}**\n\n已低于设定阈值 ¥${
+        alert.threshold
+      }\n\n⏰ ${new Date().toLocaleString()}`
+    );
+  }
+}
+
+// 采集异常提醒
+async function sendErrorAlert(gameId, error) {
+  if (!config.pushme?.errorAlert?.enabled) return;
+
+  const game = db.exec("SELECT name FROM games WHERE id = ?", [gameId]);
+  const gameName = game[0]?.values[0]?.[0] || gameId;
+
+  await sendPushMe(
+    `⚠️ 采集异常`,
+    `**${gameName}** 采集失败\n\n错误: ${error}\n\n⏰ ${new Date().toLocaleString()}`
+  );
+}
+
+// 每日报告
+async function sendDailyReport() {
+  if (!config.pushme?.dailyReport?.enabled) return;
+
+  const games = db.exec("SELECT id, name FROM games");
+  if (!games[0]?.values?.length) return;
+
+  let report = "## 📊 每日价格报告\n\n";
+
+  for (const [gameId, gameName] of games[0].values) {
+    const stats = db.exec(
+      `SELECT MIN(min_price), MAX(min_price), AVG(min_price) FROM price_records WHERE game_id = ? AND recorded_at > datetime('now', '-1 day')`,
+      [gameId]
+    );
+    const latest = db.exec(
+      `SELECT min_price FROM price_records WHERE game_id = ? ORDER BY recorded_at DESC LIMIT 1`,
+      [gameId]
+    );
+
+    if (stats[0]?.values[0]?.[0] !== null) {
+      const [min, max, avg] = stats[0].values[0];
+      const current = latest[0]?.values[0]?.[0] || 0;
+      report += `### ${gameName}\n`;
+      report += `- 当前: ¥${current.toFixed(2)}\n`;
+      report += `- 今日最低: ¥${min.toFixed(2)}\n`;
+      report += `- 今日最高: ¥${max.toFixed(2)}\n`;
+      report += `- 今日均价: ¥${avg.toFixed(2)}\n\n`;
+    }
+  }
+
+  report += `---\n⏰ ${new Date().toLocaleString()}`;
+
+  await sendPushMe("📊 Steam Key 每日报告", report);
+}
+
+let dailyReportJob = null;
+function startDailyReportJob() {
+  if (dailyReportJob) dailyReportJob.stop();
+
+  if (config.pushme?.dailyReport?.enabled && config.pushme?.dailyReport?.time) {
+    const [hour, minute] = config.pushme.dailyReport.time.split(":");
+    dailyReportJob = cron.schedule(
+      `${minute || 0} ${hour || 20} * * *`,
+      sendDailyReport,
+      { timezone: "Asia/Shanghai" }
+    );
+    console.log(`每日报告: ${config.pushme.dailyReport.time}`);
+  }
+}
+
 function fetchPriceData(gameId) {
   return new Promise((resolve, reject) => {
     const params = new URLSearchParams({
@@ -169,10 +309,17 @@ async function collectAndStorePrices(gameId) {
     );
     saveDatabase();
 
+    // 获取游戏名称并检查价格提醒
+    const game = db.exec("SELECT name FROM games WHERE id = ?", [gameId]);
+    const gameName = game[0]?.values[0]?.[0] || gameId;
+    await checkPriceAlert(gameId, gameName, minPrice);
+
     console.log(`采集完成: ¥${minPrice}`);
     return { minPrice, avgPrice, maxPrice, stockCount, sellerCount };
   } catch (e) {
     console.error("采集失败:", e.message);
+    // 发送采集异常提醒
+    await sendErrorAlert(gameId, e.message);
     return null;
   }
 }
@@ -354,13 +501,20 @@ app.get("/api/config", (req, res) => {
   res.json({
     ...config,
     accessToken: config.accessToken ? "***" + config.accessToken.slice(-6) : "",
+    pushme: {
+      ...config.pushme,
+      pushKey: config.pushme?.pushKey
+        ? "***" + config.pushme.pushKey.slice(-6)
+        : "",
+    },
     cronStatus: cronJob ? "运行中" : "已停止",
   });
 });
 
 app.put("/api/config", (req, res) => {
-  const { accessToken, collectInterval, dataRetentionDays } = req.body;
+  const { accessToken, collectInterval, dataRetentionDays, pushme } = req.body;
   let restart = false;
+  let restartDailyReport = false;
 
   if (accessToken?.length > 10) config.accessToken = accessToken;
   if (
@@ -374,8 +528,59 @@ app.put("/api/config", (req, res) => {
   if (dataRetentionDays >= 1 && dataRetentionDays <= 365)
     config.dataRetentionDays = dataRetentionDays;
 
+  // PushMe 配置更新
+  if (pushme) {
+    if (!config.pushme) config.pushme = { ...DEFAULT_CONFIG.pushme };
+
+    if (typeof pushme.enabled === "boolean")
+      config.pushme.enabled = pushme.enabled;
+    if (pushme.pushKey?.length > 5) config.pushme.pushKey = pushme.pushKey;
+
+    if (pushme.priceAlert) {
+      if (!config.pushme.priceAlert) config.pushme.priceAlert = {};
+      if (typeof pushme.priceAlert.enabled === "boolean")
+        config.pushme.priceAlert.enabled = pushme.priceAlert.enabled;
+      if (typeof pushme.priceAlert.threshold === "number")
+        config.pushme.priceAlert.threshold = pushme.priceAlert.threshold;
+    }
+
+    if (pushme.dailyReport) {
+      if (!config.pushme.dailyReport) config.pushme.dailyReport = {};
+      if (typeof pushme.dailyReport.enabled === "boolean") {
+        config.pushme.dailyReport.enabled = pushme.dailyReport.enabled;
+        restartDailyReport = true;
+      }
+      if (pushme.dailyReport.time) {
+        config.pushme.dailyReport.time = pushme.dailyReport.time;
+        restartDailyReport = true;
+      }
+    }
+
+    if (pushme.errorAlert) {
+      if (!config.pushme.errorAlert) config.pushme.errorAlert = {};
+      if (typeof pushme.errorAlert.enabled === "boolean")
+        config.pushme.errorAlert.enabled = pushme.errorAlert.enabled;
+    }
+  }
+
   saveConfig(config);
   if (restart) startCronJob();
+  if (restartDailyReport) startDailyReportJob();
+  res.json({ success: true });
+});
+
+// PushMe 测试推送
+app.post("/api/pushme/test", async (req, res) => {
+  const result = await sendPushMe(
+    "🔔 测试推送",
+    `这是一条来自 **Steam Key 价格监控** 的测试消息\n\n⏰ ${new Date().toLocaleString()}`
+  );
+  res.json(result);
+});
+
+// 手动触发每日报告
+app.post("/api/pushme/daily-report", async (req, res) => {
+  await sendDailyReport();
   res.json({ success: true });
 });
 
@@ -416,12 +621,17 @@ app.get("/api/db-stats", (req, res) => {
 async function start() {
   await initDatabase();
   startCronJob();
+  startDailyReportJob(); // 启动每日报告任务
   cron.schedule("0 0 * * *", cleanOldData, { timezone: "Asia/Shanghai" });
   setTimeout(collectAllPrices, 2000);
 
   app.listen(PORT, () => {
     console.log(
-      `\n🎮 Steam Key 价格监控 v2.0\n📍 http://localhost:${PORT}\n⏰ 采集间隔: ${config.collectInterval}分钟 | 数据保留: ${config.dataRetentionDays}天\n`
+      `\n🎮 Steam Key 价格监控 v2.1\n📍 http://localhost:${PORT}\n⏰ 采集间隔: ${
+        config.collectInterval
+      }分钟 | 数据保留: ${config.dataRetentionDays}天\n📱 PushMe: ${
+        config.pushme?.enabled ? "已启用" : "未启用"
+      }\n`
     );
   });
 }
