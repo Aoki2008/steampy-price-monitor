@@ -5,6 +5,7 @@ const https = require("https");
 const path = require("path");
 const fs = require("fs");
 const initSqlJs = require("sql.js");
+const fetch = require("node-fetch");
 
 const app = express();
 const PORT = 3000;
@@ -119,47 +120,33 @@ app.use(express.json());
 app.use(express.static("public"));
 
 // ========== PushMe 推送服务 ==========
-function sendPushMe(title, content) {
-  return new Promise((resolve, reject) => {
-    if (!config.pushme?.enabled || !config.pushme?.pushKey) {
-      return resolve({ success: false, reason: "PushMe未启用或未配置" });
-    }
 
-    const postData = `title=${encodeURIComponent(
-      title
-    )}&content=${encodeURIComponent(content)}`;
-    const req = https.request(
-      {
-        hostname: "push.i-i.me",
-        path: `/?push_key=${config.pushme.pushKey}`,
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Content-Length": Buffer.byteLength(postData),
-        },
-      },
-      (res) => {
-        let data = "";
-        res.on("data", (chunk) => (data += chunk));
-        res.on("end", () => {
-          console.log(
-            `[PushMe] ${title} - ${res.statusCode === 200 ? "成功" : "失败"}`
-          );
-          resolve({ success: res.statusCode === 200, response: data });
-        });
-      }
-    );
-    req.on("error", (e) => {
-      console.error("[PushMe] 推送失败:", e.message);
-      resolve({ success: false, error: e.message });
-    });
-    req.setTimeout(10000, () => {
-      req.destroy();
-      resolve({ success: false, error: "超时" });
-    });
-    req.write(postData);
-    req.end();
+async function sendPushMe(title, content) {
+  if (!config.pushme?.enabled || !config.pushme?.pushKey) {
+    return { success: false, reason: "PushMe未启用或未配置" };
+  }
+
+  const params = new URLSearchParams({
+    push_key: config.pushme.pushKey,
+    title: title,
+    content: content,
   });
+
+  const url = `https://push.i-i.me/?${params.toString()}`;
+
+  console.log(`[PushMe] 发送推送: ${title}`);
+
+  try {
+    const response = await fetch(url, { method: "GET", timeout: 15000 });
+    const data = await response.text();
+    const success = response.ok || data.includes("success");
+
+    console.log(`[PushMe] ${title} - ${success ? "成功" : "失败"} (${response.status})`);
+    return { success, response: data, statusCode: response.status };
+  } catch (e) {
+    console.error("[PushMe] 推送失败:", e.message);
+    return { success: false, error: e.message };
+  }
 }
 
 // 价格变动提醒

@@ -312,6 +312,15 @@
               采集异常提醒
             </label>
           </div>
+          <div class="form-group">
+            <label>代理地址（可选）</label>
+            <input
+              type="text"
+              id="pushme-proxy"
+              placeholder="如 http://127.0.0.1:10808，留空则直连"
+            />
+            <small>使用代理时填写，不使用代理留空</small>
+          </div>
           <div style="margin-top: 10px">
             <button class="btn btn-sm" onclick="testPushMe()">
               📤 测试推送

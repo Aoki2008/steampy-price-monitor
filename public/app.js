@@ -600,6 +600,7 @@ async function loadSettings() {
       pushme.dailyReport?.time || "20:00";
     document.getElementById("pushme-error-alert").checked =
       pushme.errorAlert?.enabled !== false;
+    document.getElementById("pushme-proxy").value = pushme.proxyUrl || "";
   } catch (e) {
     console.error("加载配置失败:", e);
   }
@@ -651,6 +652,8 @@ async function saveSettings() {
     },
   };
   if (pushmeKey) body.pushme.pushKey = pushmeKey;
+  const proxyUrl = document.getElementById("pushme-proxy").value.trim();
+  if (proxyUrl) body.pushme.proxyUrl = proxyUrl;
 
   try {
     const res = await fetch(`${API_BASE}/api/config`, {
