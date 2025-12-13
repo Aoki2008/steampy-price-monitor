@@ -24,7 +24,7 @@ let cronJob = null;
 
 // 默认配置
 const DEFAULT_CONFIG = {
-  accessToken: "",
+  accessToken: "", // 请在设置页面配置你的 Access Token
   collectInterval: 10,
   dataRetentionDays: 365,
   apiHost: "steampy.com",
