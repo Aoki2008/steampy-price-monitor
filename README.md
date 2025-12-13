@@ -13,7 +13,13 @@
 
 ## 🚀 快速开始
 
+### 从 GitHub 克隆
+
 ```bash
+# 克隆项目
+git clone https://github.com/Aoki2008/steampy-price-monitor.git
+cd steampy-price-monitor
+
 # 安装依赖
 npm install
 
@@ -22,6 +28,11 @@ npm start
 ```
 
 访问 **http://localhost:3000** 查看监控面板。
+
+### 环境要求
+
+- Node.js 16.0+
+- npm 7.0+
 
 ---
 
