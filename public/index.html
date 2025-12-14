@@ -310,13 +310,19 @@
               </label>
             </div>
             <div class="form-group">
-              <label>Push Key</label>
-              <input
-                type="text"
-                id="pushme-key"
-                placeholder="从 PushMe APP 获取"
-              />
-              <small>当前：<span id="current-pushme-key">未设置</span></small>
+              <label>Push Key 管理（支持多个接收者）</label>
+              <div id="pushme-keys-list" class="pushme-keys-list"></div>
+              <div class="pushme-key-add">
+                <input
+                  type="text"
+                  id="pushme-key-input"
+                  placeholder="输入 Push Key"
+                />
+                <button class="btn btn-sm" onclick="addPushKey()">添加</button>
+              </div>
+              <small class="hint"
+                >可添加多个 Push Key，消息将同时推送给所有接收者</small
+              >
             </div>
           </div>
 

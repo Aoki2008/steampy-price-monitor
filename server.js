@@ -33,7 +33,7 @@ const DEFAULT_CONFIG = {
   // PushMe 推送配置
   pushme: {
     enabled: false,
-    pushKey: "",
+    pushKeys: [], // 支持多个 Push Key，同时向多个设备推送
     // 推送冷却时间（分钟），同一游戏触发提醒后，在此时间内不再重复推送
     cooldownMinutes: 60,
     // 史低提醒（价格达到/低于游戏设定的史低价格时推送）
@@ -142,33 +142,60 @@ app.use(express.static("public"));
 // ========== PushMe 推送服务 ==========
 
 async function sendPushMe(title, content) {
-  if (!config.pushme?.enabled || !config.pushme?.pushKey) {
+  const pushKeys = config.pushme?.pushKeys || [];
+  // 兼容旧配置：如果有单个 pushKey，也加入列表
+  if (config.pushme?.pushKey && !pushKeys.includes(config.pushme.pushKey)) {
+    pushKeys.push(config.pushme.pushKey);
+  }
+
+  if (!config.pushme?.enabled || pushKeys.length === 0) {
     return { success: false, reason: "PushMe未启用或未配置" };
   }
 
-  const params = new URLSearchParams({
-    push_key: config.pushme.pushKey,
-    title: title,
-    content: content,
-  });
+  console.log(`[PushMe] 发送推送: ${title} (共 ${pushKeys.length} 个接收者)`);
 
-  const url = `https://push.i-i.me/?${params.toString()}`;
+  const results = [];
+  for (const pushKey of pushKeys) {
+    const params = new URLSearchParams({
+      push_key: pushKey,
+      title: title,
+      content: content,
+    });
 
-  console.log(`[PushMe] 发送推送: ${title}`);
+    const url = `https://push.i-i.me/?${params.toString()}`;
 
-  try {
-    const response = await fetch(url, { method: "GET", timeout: 15000 });
-    const data = await response.text();
-    const success = response.ok || data.includes("success");
+    try {
+      const response = await fetch(url, { method: "GET", timeout: 15000 });
+      const data = await response.text();
+      const success = response.ok || data.includes("success");
 
-    console.log(
-      `[PushMe] ${title} - ${success ? "成功" : "失败"} (${response.status})`
-    );
-    return { success, response: data, statusCode: response.status };
-  } catch (e) {
-    console.error("[PushMe] 推送失败:", e.message);
-    return { success: false, error: e.message };
+      console.log(
+        `[PushMe] ${pushKey.slice(0, 6)}*** - ${success ? "成功" : "失败"} (${
+          response.status
+        })`
+      );
+      results.push({
+        pushKey: pushKey.slice(0, 6) + "***",
+        success,
+        statusCode: response.status,
+      });
+    } catch (e) {
+      console.error(`[PushMe] ${pushKey.slice(0, 6)}*** 推送失败:`, e.message);
+      results.push({
+        pushKey: pushKey.slice(0, 6) + "***",
+        success: false,
+        error: e.message,
+      });
+    }
   }
+
+  const successCount = results.filter((r) => r.success).length;
+  return {
+    success: successCount > 0,
+    total: pushKeys.length,
+    successCount,
+    results,
+  };
 }
 
 // 价格提醒检查（综合所有规则）

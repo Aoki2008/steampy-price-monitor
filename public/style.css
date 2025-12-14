@@ -570,19 +570,21 @@ body {
 /* 设置标签式布局 */
 .settings-tabs {
   display: flex;
+  flex-wrap: nowrap;
   gap: 0;
   border-bottom: 1px solid var(--border);
   margin-bottom: 20px;
 }
 
 .settings-tab {
-  padding: 12px 20px;
+  padding: 10px 12px;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
+  white-space: nowrap;
   transition: all 0.2s;
 }
 
@@ -602,6 +604,51 @@ body {
 
 .settings-panel.active {
   display: block;
+}
+
+/* PushMe Key 列表 */
+.pushme-keys-list {
+  margin-bottom: 8px;
+}
+
+.pushme-key-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.pushme-key-item .key-text {
+  flex: 1;
+  font-family: monospace;
+  color: var(--text-secondary);
+}
+
+.pushme-key-item .btn-remove {
+  padding: 2px 8px;
+  font-size: 12px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pushme-key-item .btn-remove:hover {
+  opacity: 0.8;
+}
+
+.pushme-key-add {
+  display: flex;
+  gap: 8px;
+}
+
+.pushme-key-add input {
+  flex: 1;
 }
 
 /* 游戏史低价格列表 */

@@ -681,8 +681,13 @@ async function loadSettings() {
     // PushMe 配置
     const pushme = config.pushme || {};
     document.getElementById("pushme-enabled").checked = pushme.enabled || false;
-    document.getElementById("current-pushme-key").textContent =
-      pushme.pushKey || "未设置";
+    // 加载 Push Keys 列表
+    window.pushmeKeys = pushme.pushKeys || [];
+    // 兼容旧配置
+    if (pushme.pushKey && !window.pushmeKeys.includes(pushme.pushKey)) {
+      window.pushmeKeys.push(pushme.pushKey);
+    }
+    renderPushKeysList();
     // 推送冷却时间
     document.getElementById("pushme-cooldown").value =
       pushme.cooldownMinutes || 60;
@@ -737,9 +742,9 @@ async function saveSettings() {
   if (token) body.accessToken = token;
 
   // PushMe 配置
-  const pushmeKey = document.getElementById("pushme-key").value.trim();
   body.pushme = {
     enabled: document.getElementById("pushme-enabled").checked,
+    pushKeys: window.pushmeKeys || [],
     // 推送冷却时间
     cooldownMinutes:
       parseInt(document.getElementById("pushme-cooldown").value) || 60,
@@ -765,7 +770,6 @@ async function saveSettings() {
       enabled: document.getElementById("pushme-error-alert").checked,
     },
   };
-  if (pushmeKey) body.pushme.pushKey = pushmeKey;
 
   try {
     const res = await fetch(`${API_BASE}/api/config`, {
@@ -778,7 +782,6 @@ async function saveSettings() {
       alert("设置已保存！");
       hideSettingsModal();
       document.getElementById("input-token").value = "";
-      document.getElementById("pushme-key").value = "";
     } else {
       alert("保存失败");
     }
@@ -1006,3 +1009,59 @@ loadPriceData = async function () {
   await originalLoadPriceData();
   await loadAnalysisData();
 };
+
+// ========== PushMe Key 管理 ==========
+
+// 初始化 pushmeKeys
+window.pushmeKeys = window.pushmeKeys || [];
+
+// 渲染 Push Keys 列表
+function renderPushKeysList() {
+  const container = document.getElementById("pushme-keys-list");
+  if (!container) return;
+
+  if (window.pushmeKeys.length === 0) {
+    container.innerHTML =
+      '<div style="color: var(--text-secondary); font-size: 13px; padding: 8px 0;">暂无 Push Key</div>';
+    return;
+  }
+
+  container.innerHTML = window.pushmeKeys
+    .map(
+      (key, index) => `
+      <div class="pushme-key-item">
+        <span class="key-text">${key.slice(0, 6)}***${key.slice(-4)}</span>
+        <button class="btn-remove" onclick="removePushKey(${index})">删除</button>
+      </div>
+    `
+    )
+    .join("");
+}
+
+// 添加 Push Key
+function addPushKey() {
+  const input = document.getElementById("pushme-key-input");
+  const key = input.value.trim();
+
+  if (!key) {
+    alert("请输入 Push Key");
+    return;
+  }
+
+  if (window.pushmeKeys.includes(key)) {
+    alert("该 Push Key 已存在");
+    return;
+  }
+
+  window.pushmeKeys.push(key);
+  input.value = "";
+  renderPushKeysList();
+}
+
+// 删除 Push Key
+function removePushKey(index) {
+  if (confirm("确定要删除这个 Push Key 吗？")) {
+    window.pushmeKeys.splice(index, 1);
+    renderPushKeysList();
+  }
+}
