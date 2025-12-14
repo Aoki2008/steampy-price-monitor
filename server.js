@@ -34,16 +34,26 @@ const DEFAULT_CONFIG = {
   pushme: {
     enabled: false,
     pushKey: "",
-    priceAlert: {
+    // 推送冷却时间（分钟），同一游戏触发提醒后，在此时间内不再重复推送
+    cooldownMinutes: 60,
+    // 史低提醒（价格达到/低于游戏设定的史低价格时推送）
+    historyLowAlert: {
       enabled: false,
-      threshold: 0, // 价格低于此值时推送
     },
+    // 价格变动提醒（涨跌幅）
+    priceChangeAlert: {
+      enabled: false,
+      dropPercent: 10, // 跌幅超过此百分比时推送
+      risePercent: 0, // 涨幅超过此百分比时推送（0表示不提醒）
+    },
+    // 每日报告
     dailyReport: {
       enabled: false,
       time: "20:00", // 每日报告时间
     },
+    // 采集异常提醒
     errorAlert: {
-      enabled: true, // 采集异常时推送
+      enabled: true,
     },
   },
 };
@@ -65,6 +75,9 @@ function saveConfig(config) {
 }
 
 let config = loadConfig();
+
+// 推送冷却记录 { gameId: lastPushTime }
+const pushCooldowns = {};
 
 function saveDatabase() {
   if (db) {
@@ -158,20 +171,70 @@ async function sendPushMe(title, content) {
   }
 }
 
-// 价格变动提醒
+// 价格提醒检查（综合所有规则）
 async function checkPriceAlert(gameId, gameName, minPrice) {
-  const alert = config.pushme?.priceAlert;
-  if (!alert?.enabled || !alert?.threshold) return;
+  if (!config.pushme?.enabled) return;
 
-  if (minPrice <= alert.threshold) {
-    await sendPushMe(
-      `🔔 价格提醒: ${gameName}`,
-      `**${gameName}** 当前最低价 **¥${minPrice.toFixed(
-        2
-      )}**\n\n已低于设定阈值 ¥${
-        alert.threshold
-      }\n\n⏰ ${new Date().toLocaleString()}`
+  const pushme = config.pushme;
+
+  // 检查冷却时间
+  const cooldownMs = (pushme.cooldownMinutes || 60) * 60 * 1000;
+  const lastPushTime = pushCooldowns[gameId] || 0;
+  const now = Date.now();
+  if (now - lastPushTime < cooldownMs) {
+    console.log(`[PushMe] ${gameName} 在冷却中，跳过推送`);
+    return;
+  }
+
+  const alerts = [];
+
+  // 1. 史低提醒
+  if (pushme.historyLowAlert?.enabled) {
+    const game = db.exec("SELECT history_low_price FROM games WHERE id = ?", [
+      gameId,
+    ]);
+    const historyLow = game[0]?.values[0]?.[0];
+    if (historyLow !== null && minPrice <= historyLow) {
+      alerts.push(`🏆 达到/低于史低 ¥${historyLow}`);
+    }
+  }
+
+  // 2. 价格变动提醒（涨跌幅）
+  if (pushme.priceChangeAlert?.enabled) {
+    const lastRecord = db.exec(
+      `SELECT min_price FROM price_records WHERE game_id = ? ORDER BY recorded_at DESC LIMIT 1 OFFSET 1`,
+      [gameId]
     );
+    const lastPrice = lastRecord[0]?.values[0]?.[0];
+    if (lastPrice && lastPrice > 0) {
+      const changePercent = ((minPrice - lastPrice) / lastPrice) * 100;
+      const { dropPercent, risePercent } = pushme.priceChangeAlert;
+
+      if (dropPercent > 0 && changePercent <= -dropPercent) {
+        alerts.push(
+          `📉 下跌 ${Math.abs(changePercent).toFixed(1)}%（¥${lastPrice.toFixed(
+            2
+          )} → ¥${minPrice.toFixed(2)}）`
+        );
+      }
+      if (risePercent > 0 && changePercent >= risePercent) {
+        alerts.push(
+          `📈 上涨 ${changePercent.toFixed(1)}%（¥${lastPrice.toFixed(
+            2
+          )} → ¥${minPrice.toFixed(2)}）`
+        );
+      }
+    }
+  }
+
+  // 发送推送
+  if (alerts.length > 0) {
+    const content = `**${gameName}** 当前最低价 **¥${minPrice.toFixed(
+      2
+    )}**\n\n${alerts.join("\n")}\n\n⏰ ${new Date().toLocaleString()}`;
+    await sendPushMe(`🔔 价格提醒: ${gameName}`, content);
+    // 记录推送时间
+    pushCooldowns[gameId] = now;
   }
 }
 

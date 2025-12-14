@@ -386,19 +386,19 @@ body {
 }
 
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   font-size: 14px;
   color: var(--text-secondary);
 }
 
 .form-group input {
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 12px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -409,6 +409,14 @@ body {
 .form-group input:focus {
   outline: none;
   border-color: var(--primary);
+}
+
+.form-group input[type="checkbox"] {
+  width: auto;
+  margin-right: 6px;
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
 }
 
 .modal-actions {
@@ -446,8 +454,8 @@ body {
 }
 
 .settings-section {
-  margin-bottom: 24px;
-  padding-bottom: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -458,7 +466,7 @@ body {
 .settings-section h4 {
   font-size: 14px;
   color: var(--primary);
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -628,6 +636,40 @@ body {
 }
 
 .game-history-item .current-price {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* 推送规则子选项 */
+.sub-options {
+  margin-top: 8px;
+  padding-left: 24px;
+}
+
+.sub-options input[type="number"],
+.sub-options input[type="time"] {
+  width: 100%;
+  max-width: 200px;
+}
+
+.range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.range-inputs input {
+  width: 80px !important;
+}
+
+.range-inputs span {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.form-group .hint {
+  display: block;
+  margin-top: 5px;
   font-size: 12px;
   color: var(--text-secondary);
 }

@@ -683,14 +683,25 @@ async function loadSettings() {
     document.getElementById("pushme-enabled").checked = pushme.enabled || false;
     document.getElementById("current-pushme-key").textContent =
       pushme.pushKey || "未设置";
-    document.getElementById("pushme-price-alert").checked =
-      pushme.priceAlert?.enabled || false;
-    document.getElementById("pushme-price-threshold").value =
-      pushme.priceAlert?.threshold || "";
+    // 推送冷却时间
+    document.getElementById("pushme-cooldown").value =
+      pushme.cooldownMinutes || 60;
+    // 史低提醒
+    document.getElementById("pushme-history-low-alert").checked =
+      pushme.historyLowAlert?.enabled || false;
+    // 价格变动提醒
+    document.getElementById("pushme-price-change-alert").checked =
+      pushme.priceChangeAlert?.enabled || false;
+    document.getElementById("pushme-drop-percent").value =
+      pushme.priceChangeAlert?.dropPercent || "";
+    document.getElementById("pushme-rise-percent").value =
+      pushme.priceChangeAlert?.risePercent || "";
+    // 每日报告
     document.getElementById("pushme-daily-report").checked =
       pushme.dailyReport?.enabled || false;
     document.getElementById("pushme-report-time").value =
       pushme.dailyReport?.time || "20:00";
+    // 异常提醒
     document.getElementById("pushme-error-alert").checked =
       pushme.errorAlert?.enabled !== false;
   } catch (e) {
@@ -729,16 +740,27 @@ async function saveSettings() {
   const pushmeKey = document.getElementById("pushme-key").value.trim();
   body.pushme = {
     enabled: document.getElementById("pushme-enabled").checked,
-    priceAlert: {
-      enabled: document.getElementById("pushme-price-alert").checked,
-      threshold:
-        parseFloat(document.getElementById("pushme-price-threshold").value) ||
-        0,
+    // 推送冷却时间
+    cooldownMinutes:
+      parseInt(document.getElementById("pushme-cooldown").value) || 60,
+    // 史低提醒
+    historyLowAlert: {
+      enabled: document.getElementById("pushme-history-low-alert").checked,
     },
+    // 价格变动提醒
+    priceChangeAlert: {
+      enabled: document.getElementById("pushme-price-change-alert").checked,
+      dropPercent:
+        parseFloat(document.getElementById("pushme-drop-percent").value) || 0,
+      risePercent:
+        parseFloat(document.getElementById("pushme-rise-percent").value) || 0,
+    },
+    // 每日报告
     dailyReport: {
       enabled: document.getElementById("pushme-daily-report").checked,
       time: document.getElementById("pushme-report-time").value || "20:00",
     },
+    // 异常提醒
     errorAlert: {
       enabled: document.getElementById("pushme-error-alert").checked,
     },

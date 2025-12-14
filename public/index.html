@@ -302,7 +302,7 @@
         <!-- 推送设置 -->
         <div class="settings-panel" id="panel-pushme">
           <div class="settings-section">
-            <h4>📱 PushMe 推送配置</h4>
+            <h4>📱 PushMe 基础配置</h4>
             <div class="form-group">
               <label>
                 <input type="checkbox" id="pushme-enabled" />
@@ -318,29 +318,71 @@
               />
               <small>当前：<span id="current-pushme-key">未设置</span></small>
             </div>
+          </div>
+
+          <div class="settings-section">
+            <h4>🔔 价格提醒规则</h4>
             <div class="form-group">
-              <label>
-                <input type="checkbox" id="pushme-price-alert" />
-                价格提醒（低于阈值时推送）
-              </label>
+              <label>推送冷却时间（分钟）</label>
               <input
                 type="number"
-                id="pushme-price-threshold"
-                placeholder="价格阈值，如 5"
-                style="margin-top: 5px"
+                id="pushme-cooldown"
+                min="1"
+                max="1440"
+                value="60"
               />
+              <small class="hint"
+                >同一游戏触发提醒后，在此时间内不再重复推送</small
+              >
             </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="pushme-history-low-alert" />
+                史低提醒（价格达到/低于游戏设定的史低时推送）
+              </label>
+              <small class="hint"
+                >需先在「游戏管理」中设置各游戏的史低价格</small
+              >
+            </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="pushme-price-change-alert" />
+                价格变动提醒（涨跌幅）
+              </label>
+              <div class="sub-options">
+                <div class="range-inputs">
+                  <input
+                    type="number"
+                    id="pushme-drop-percent"
+                    placeholder="跌幅%"
+                    min="0"
+                    max="100"
+                  />
+                  <span>跌</span>
+                  <input
+                    type="number"
+                    id="pushme-rise-percent"
+                    placeholder="涨幅%"
+                    min="0"
+                    max="100"
+                  />
+                  <span>涨</span>
+                </div>
+                <small>价格变动超过此百分比时推送（0表示不提醒）</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h4>📊 其他提醒</h4>
             <div class="form-group">
               <label>
                 <input type="checkbox" id="pushme-daily-report" />
                 每日报告
               </label>
-              <input
-                type="time"
-                id="pushme-report-time"
-                value="20:00"
-                style="margin-top: 5px"
-              />
+              <div class="sub-options">
+                <input type="time" id="pushme-report-time" value="20:00" />
+              </div>
             </div>
             <div class="form-group">
               <label>
@@ -348,7 +390,7 @@
                 采集异常提醒
               </label>
             </div>
-            <div style="margin-top: 10px">
+            <div style="margin-top: 15px">
               <button class="btn btn-sm" onclick="testPushMe()">
                 📤 测试推送
               </button>
