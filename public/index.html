@@ -226,146 +226,197 @@
       <div class="modal-content modal-lg">
         <h3>⚙️ 系统设置</h3>
 
-        <div class="settings-section">
-          <h4>采集配置</h4>
-          <div class="form-group">
-            <label>采集间隔（分钟）</label>
-            <input
-              type="number"
-              id="input-interval"
-              min="1"
-              max="1440"
-              value="10"
-            />
-            <small>范围：1-1440分钟（最长24小时）</small>
-          </div>
-          <div class="form-group">
-            <label>数据保留天数</label>
-            <input
-              type="number"
-              id="input-retention"
-              min="1"
-              max="365"
-              value="365"
-            />
-            <small>范围：1-365天（最长一年）</small>
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <h4>API 配置</h4>
-          <div class="form-group">
-            <label>Access Token</label>
-            <input
-              type="text"
-              id="input-token"
-              placeholder="输入新的 Access Token"
-            />
-            <small>当前：<span id="current-token">***</span></small>
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <h4>📱 PushMe 推送配置</h4>
-          <div class="form-group">
-            <label>
-              <input type="checkbox" id="pushme-enabled" />
-              启用 PushMe 推送
-            </label>
-          </div>
-          <div class="form-group">
-            <label>Push Key</label>
-            <input
-              type="text"
-              id="pushme-key"
-              placeholder="从 PushMe APP 获取"
-            />
-            <small>当前：<span id="current-pushme-key">未设置</span></small>
-          </div>
-          <div class="form-group">
-            <label>
-              <input type="checkbox" id="pushme-price-alert" />
-              价格提醒（低于阈值时推送）
-            </label>
-            <input
-              type="number"
-              id="pushme-price-threshold"
-              placeholder="价格阈值，如 5"
-              style="margin-top: 5px"
-            />
-          </div>
-          <div class="form-group">
-            <label>
-              <input type="checkbox" id="pushme-daily-report" />
-              每日报告
-            </label>
-            <input
-              type="time"
-              id="pushme-report-time"
-              value="20:00"
-              style="margin-top: 5px"
-            />
-          </div>
-          <div class="form-group">
-            <label>
-              <input type="checkbox" id="pushme-error-alert" checked />
-              采集异常提醒
-            </label>
-          </div>
-          <div class="form-group">
-            <label>代理地址（可选）</label>
-            <input
-              type="text"
-              id="pushme-proxy"
-              placeholder="如 http://127.0.0.1:10808，留空则直连"
-            />
-            <small>使用代理时填写，不使用代理留空</small>
-          </div>
-          <div style="margin-top: 10px">
-            <button class="btn btn-sm" onclick="testPushMe()">
-              📤 测试推送
-            </button>
-            <button
-              class="btn btn-sm"
-              onclick="sendDailyReport()"
-              style="margin-left: 5px"
-            >
-              📊 发送报告
-            </button>
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <h4>数据库状态</h4>
-          <div class="db-stats">
-            <div class="db-stat-item">
-              <span class="db-stat-label">记录总数</span>
-              <span class="db-stat-value" id="db-record-count">--</span>
-            </div>
-            <div class="db-stat-item">
-              <span class="db-stat-label">监控游戏</span>
-              <span class="db-stat-value" id="db-game-count">--</span>
-            </div>
-            <div class="db-stat-item">
-              <span class="db-stat-label">数据库大小</span>
-              <span class="db-stat-value" id="db-size">--</span>
-            </div>
-            <div class="db-stat-item">
-              <span class="db-stat-label">最早记录</span>
-              <span class="db-stat-value" id="db-oldest">--</span>
-            </div>
-          </div>
+        <!-- 标签导航 -->
+        <div class="settings-tabs">
           <button
-            class="btn btn-sm btn-danger"
-            onclick="cleanupData()"
-            style="margin-top: 10px"
+            class="settings-tab active"
+            data-tab="basic"
+            onclick="switchSettingsTab('basic')"
           >
-            🗑️ 清理过期数据
+            📋 基础设置
+          </button>
+          <button
+            class="settings-tab"
+            data-tab="pushme"
+            onclick="switchSettingsTab('pushme')"
+          >
+            📱 推送设置
+          </button>
+          <button
+            class="settings-tab"
+            data-tab="games"
+            onclick="switchSettingsTab('games')"
+          >
+            🎮 游戏管理
+          </button>
+          <button
+            class="settings-tab"
+            data-tab="database"
+            onclick="switchSettingsTab('database')"
+          >
+            💾 数据库
           </button>
         </div>
 
+        <!-- 基础设置 -->
+        <div class="settings-panel active" id="panel-basic">
+          <div class="settings-section">
+            <h4>采集配置</h4>
+            <div class="form-group">
+              <label>采集间隔（分钟）</label>
+              <input
+                type="number"
+                id="input-interval"
+                min="1"
+                max="1440"
+                value="10"
+              />
+              <small>范围：1-1440分钟（最长24小时）</small>
+            </div>
+            <div class="form-group">
+              <label>数据保留天数</label>
+              <input
+                type="number"
+                id="input-retention"
+                min="1"
+                max="365"
+                value="365"
+              />
+              <small>范围：1-365天（最长一年）</small>
+            </div>
+          </div>
+          <div class="settings-section">
+            <h4>API 配置</h4>
+            <div class="form-group">
+              <label>Access Token</label>
+              <input
+                type="text"
+                id="input-token"
+                placeholder="输入新的 Access Token"
+              />
+              <small>当前：<span id="current-token">***</span></small>
+            </div>
+          </div>
+        </div>
+
+        <!-- 推送设置 -->
+        <div class="settings-panel" id="panel-pushme">
+          <div class="settings-section">
+            <h4>📱 PushMe 推送配置</h4>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="pushme-enabled" />
+                启用 PushMe 推送
+              </label>
+            </div>
+            <div class="form-group">
+              <label>Push Key</label>
+              <input
+                type="text"
+                id="pushme-key"
+                placeholder="从 PushMe APP 获取"
+              />
+              <small>当前：<span id="current-pushme-key">未设置</span></small>
+            </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="pushme-price-alert" />
+                价格提醒（低于阈值时推送）
+              </label>
+              <input
+                type="number"
+                id="pushme-price-threshold"
+                placeholder="价格阈值，如 5"
+                style="margin-top: 5px"
+              />
+            </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="pushme-daily-report" />
+                每日报告
+              </label>
+              <input
+                type="time"
+                id="pushme-report-time"
+                value="20:00"
+                style="margin-top: 5px"
+              />
+            </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="pushme-error-alert" checked />
+                采集异常提醒
+              </label>
+            </div>
+            <div style="margin-top: 10px">
+              <button class="btn btn-sm" onclick="testPushMe()">
+                📤 测试推送
+              </button>
+              <button
+                class="btn btn-sm"
+                onclick="sendDailyReport()"
+                style="margin-left: 5px"
+              >
+                📊 发送报告
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 游戏管理 -->
+        <div class="settings-panel" id="panel-games">
+          <div class="settings-section">
+            <h4>🎮 游戏史低价格设置</h4>
+            <small
+              style="
+                color: var(--text-secondary);
+                display: block;
+                margin-bottom: 15px;
+              "
+            >
+              设置每款游戏的史低价格，当价格低于史低时会特别标注
+            </small>
+            <div id="games-history-low-list">
+              <!-- 动态生成 -->
+              <p style="color: var(--text-secondary)">加载中...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 数据库 -->
+        <div class="settings-panel" id="panel-database">
+          <div class="settings-section">
+            <h4>数据库状态</h4>
+            <div class="db-stats">
+              <div class="db-stat-item">
+                <span class="db-stat-label">记录总数</span>
+                <span class="db-stat-value" id="db-record-count">--</span>
+              </div>
+              <div class="db-stat-item">
+                <span class="db-stat-label">监控游戏</span>
+                <span class="db-stat-value" id="db-game-count">--</span>
+              </div>
+              <div class="db-stat-item">
+                <span class="db-stat-label">数据库大小</span>
+                <span class="db-stat-value" id="db-size">--</span>
+              </div>
+              <div class="db-stat-item">
+                <span class="db-stat-label">最早记录</span>
+                <span class="db-stat-value" id="db-oldest">--</span>
+              </div>
+            </div>
+            <button
+              class="btn btn-sm btn-danger"
+              onclick="cleanupData()"
+              style="margin-top: 10px"
+            >
+              🗑️ 清理过期数据
+            </button>
+          </div>
+        </div>
+
         <div class="modal-actions">
-          <button class="btn" onclick="hideSettingsModal()">取消</button>
+          <button class="btn" onclick="hideSettingsModal()">关闭</button>
           <button class="btn btn-primary" onclick="saveSettings()">
             保存设置
           </button>

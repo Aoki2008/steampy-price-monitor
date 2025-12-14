@@ -87,7 +87,7 @@ async function initDatabase() {
   }
 
   db.run(
-    `CREATE TABLE IF NOT EXISTS games (id TEXT PRIMARY KEY, name TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
+    `CREATE TABLE IF NOT EXISTS games (id TEXT PRIMARY KEY, name TEXT, history_low_price REAL DEFAULT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
   );
   db.run(
     `CREATE TABLE IF NOT EXISTS price_records (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, min_price REAL NOT NULL, avg_price REAL, max_price REAL, stock_count INTEGER, seller_count INTEGER, recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
@@ -95,6 +95,13 @@ async function initDatabase() {
   db.run(
     `CREATE INDEX IF NOT EXISTS idx_price_game_time ON price_records(game_id, recorded_at)`
   );
+
+  // 数据库迁移：为现有 games 表添加 history_low_price 字段
+  try {
+    db.run(`ALTER TABLE games ADD COLUMN history_low_price REAL DEFAULT NULL`);
+  } catch (e) {
+    // 字段已存在，忽略错误
+  }
 
   const games = db.exec("SELECT COUNT(*) FROM games");
   if (games[0]?.values[0][0] === 0) {
@@ -141,7 +148,9 @@ async function sendPushMe(title, content) {
     const data = await response.text();
     const success = response.ok || data.includes("success");
 
-    console.log(`[PushMe] ${title} - ${success ? "成功" : "失败"} (${response.status})`);
+    console.log(
+      `[PushMe] ${title} - ${success ? "成功" : "失败"} (${response.status})`
+    );
     return { success, response: data, statusCode: response.status };
   } catch (e) {
     console.error("[PushMe] 推送失败:", e.message);
@@ -330,12 +339,15 @@ function startCronJob() {
 
 // ========== API ==========
 app.get("/api/games", (req, res) => {
-  const r = db.exec("SELECT * FROM games");
+  const r = db.exec(
+    "SELECT id, name, history_low_price, created_at FROM games"
+  );
   res.json(
     r[0]?.values.map((row) => ({
       id: row[0],
       name: row[1],
-      created_at: row[2],
+      history_low_price: row[2],
+      created_at: row[3],
     })) || []
   );
 });
@@ -355,6 +367,21 @@ app.post("/api/games", (req, res) => {
 app.delete("/api/games/:id", (req, res) => {
   db.run("DELETE FROM price_records WHERE game_id = ?", [req.params.id]);
   db.run("DELETE FROM games WHERE id = ?", [req.params.id]);
+  saveDatabase();
+  res.json({ success: true });
+});
+
+// 更新游戏史低价格
+app.put("/api/games/:id/history-low", (req, res) => {
+  const { history_low_price } = req.body;
+  const price =
+    history_low_price === null || history_low_price === ""
+      ? null
+      : parseFloat(history_low_price);
+  db.run("UPDATE games SET history_low_price = ? WHERE id = ?", [
+    price,
+    req.params.id,
+  ]);
   saveDatabase();
   res.json({ success: true });
 });

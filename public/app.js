@@ -566,12 +566,105 @@ document.addEventListener("keydown", (e) => {
 // ========== 设置面板 ==========
 async function showSettingsModal() {
   document.getElementById("settings-modal").classList.add("show");
+  switchSettingsTab("basic"); // 默认显示基础设置
   await loadSettings();
   await loadDbStats();
 }
 
 function hideSettingsModal() {
   document.getElementById("settings-modal").classList.remove("show");
+}
+
+// 切换设置标签
+function switchSettingsTab(tabName) {
+  // 更新标签按钮状态
+  document.querySelectorAll(".settings-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.tab === tabName);
+  });
+  // 更新面板显示
+  document.querySelectorAll(".settings-panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.id === `panel-${tabName}`);
+  });
+  // 如果切换到游戏管理标签，加载游戏列表
+  if (tabName === "games") {
+    loadGamesHistoryLow();
+  }
+}
+
+// 加载游戏史低价格列表
+async function loadGamesHistoryLow() {
+  const container = document.getElementById("games-history-low-list");
+  try {
+    const res = await fetch(`${API_BASE}/api/games`);
+    const games = await res.json();
+
+    if (games.length === 0) {
+      container.innerHTML =
+        '<p style="color: var(--text-secondary)">暂无监控游戏</p>';
+      return;
+    }
+
+    container.innerHTML = games
+      .map(
+        (game) => `
+      <div class="game-history-item" data-id="${game.id}">
+        <span class="game-name">${game.name || game.id}</span>
+        <span class="current-price">当前史低: ${
+          game.history_low_price !== null
+            ? "¥" + game.history_low_price
+            : "未设置"
+        }</span>
+        <input type="number" step="0.01" min="0" placeholder="史低价格" value="${
+          game.history_low_price || ""
+        }" />
+        <button class="btn btn-sm btn-primary btn-save" onclick="saveGameHistoryLow('${
+          game.id
+        }', this)">保存</button>
+      </div>
+    `
+      )
+      .join("");
+  } catch (e) {
+    container.innerHTML = '<p style="color: var(--danger)">加载失败</p>';
+    console.error("加载游戏列表失败:", e);
+  }
+}
+
+// 保存游戏史低价格
+async function saveGameHistoryLow(gameId, btn) {
+  const item = btn.closest(".game-history-item");
+  const input = item.querySelector("input");
+  const price = input.value.trim();
+
+  btn.disabled = true;
+  btn.textContent = "保存中...";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/games/${gameId}/history-low`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        history_low_price: price === "" ? null : parseFloat(price),
+      }),
+    });
+
+    if (res.ok) {
+      btn.textContent = "✓ 已保存";
+      item.querySelector(".current-price").textContent = price
+        ? `当前史低: ¥${price}`
+        : "当前史低: 未设置";
+      setTimeout(() => {
+        btn.textContent = "保存";
+        btn.disabled = false;
+      }, 1500);
+    } else {
+      throw new Error("保存失败");
+    }
+  } catch (e) {
+    btn.textContent = "保存失败";
+    btn.disabled = false;
+    console.error("保存史低价格失败:", e);
+  }
 }
 
 async function loadSettings() {
@@ -600,7 +693,6 @@ async function loadSettings() {
       pushme.dailyReport?.time || "20:00";
     document.getElementById("pushme-error-alert").checked =
       pushme.errorAlert?.enabled !== false;
-    document.getElementById("pushme-proxy").value = pushme.proxyUrl || "";
   } catch (e) {
     console.error("加载配置失败:", e);
   }
@@ -652,8 +744,6 @@ async function saveSettings() {
     },
   };
   if (pushmeKey) body.pushme.pushKey = pushmeKey;
-  const proxyUrl = document.getElementById("pushme-proxy").value.trim();
-  if (proxyUrl) body.pushme.proxyUrl = proxyUrl;
 
   try {
     const res = await fetch(`${API_BASE}/api/config`, {

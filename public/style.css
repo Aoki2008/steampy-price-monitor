@@ -559,6 +559,79 @@ body {
   color: var(--success);
 }
 
+/* 设置标签式布局 */
+.settings-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.settings-tab {
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.settings-tab:hover {
+  color: var(--text);
+  background: var(--bg-card-hover);
+}
+
+.settings-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.settings-panel {
+  display: none;
+}
+
+.settings-panel.active {
+  display: block;
+}
+
+/* 游戏史低价格列表 */
+.game-history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.game-history-item .game-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.game-history-item input {
+  width: 100px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.game-history-item .btn-save {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.game-history-item .current-price {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .header {
