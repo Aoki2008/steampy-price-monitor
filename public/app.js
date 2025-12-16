@@ -12,6 +12,17 @@ let allPrices = [];
 // API 基础地址
 const API_BASE = "";
 
+// ========== HTML 转义工具函数 ==========
+function escapeHtml(unsafe) {
+  if (unsafe === null || unsafe === undefined) return '';
+  return String(unsafe)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 // ========== 初始化 ==========
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
@@ -64,12 +75,22 @@ async function loadGames() {
       const div = document.createElement("div");
       div.className = `game-item ${index === 0 ? "active" : ""}`;
       div.dataset.id = game.id;
-      div.innerHTML = `
-        <span class="game-name">${game.name || game.id}</span>
-        <span class="delete-btn" onclick="deleteGame('${
-          game.id
-        }', event)">✕</span>
-      `;
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "game-name";
+      nameSpan.textContent = game.name || game.id;
+
+      const deleteBtn = document.createElement("span");
+      deleteBtn.className = "delete-btn";
+      deleteBtn.textContent = "✕";
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        deleteGame(game.id, e);
+      };
+
+      div.appendChild(nameSpan);
+      div.appendChild(deleteBtn);
+
       div.onclick = (e) => {
         if (!e.target.classList.contains("delete-btn")) {
           selectGame(game.id);
@@ -688,37 +709,89 @@ async function loadGamesHistoryLow() {
       return;
     }
 
-    container.innerHTML = games
-      .map(
-        (game) => `
-      <div class="game-history-item" data-id="${game.id}">
-        <span class="game-name">${game.name || game.id}</span>
-        <span class="current-price">当前史低: ${
-          game.history_low_price !== null ? "¥" + game.history_low_price : "未设置"
-        }</span>
-        <div class="game-settings-row">
-          <div>
-            <input type="number" step="0.01" min="0" placeholder="史低价格" value="${
-              game.history_low_price || ""
-            }" />
-            <button class="btn btn-sm btn-primary btn-save" onclick="saveGameHistoryLow('${game.id}', this)">保存</button>
-          </div>
-          <div style="margin-left: 20px">
-            <label><input type="checkbox" class="game-push-enabled" ${game.push_enabled ? 'checked' : ''} /> 启用推送提醒</label>
-            <div style="margin-top:6px">
-              <input type="number" class="game-drop-percent" min="0" max="100" placeholder="跌幅% (优先于全局)" value="${
-                game.push_drop_percent || ""
-              }" style="width:100px" />
-              <input type="number" class="game-rise-percent" min="0" max="100" placeholder="涨幅% (优先于全局)" value="${
-                game.push_rise_percent || ""
-              }" style="width:100px;margin-left:6px" />
-            </div>
-          </div>
-        </div>
-      </div>
-    `
-      )
-      .join("");
+    container.innerHTML = '';
+    games.forEach((game) => {
+      const item = document.createElement('div');
+      item.className = 'game-history-item';
+      item.dataset.id = game.id;
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'game-name';
+      nameSpan.textContent = game.name || game.id;
+
+      const priceSpan = document.createElement('span');
+      priceSpan.className = 'current-price';
+      priceSpan.textContent = game.history_low_price !== null
+        ? `当前史低: ¥${game.history_low_price}`
+        : '当前史低: 未设置';
+
+      const settingsRow = document.createElement('div');
+      settingsRow.className = 'game-settings-row';
+
+      const priceDiv = document.createElement('div');
+      const priceInput = document.createElement('input');
+      priceInput.type = 'number';
+      priceInput.step = '0.01';
+      priceInput.min = '0';
+      priceInput.placeholder = '史低价格';
+      priceInput.value = game.history_low_price || '';
+
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'btn btn-sm btn-primary btn-save';
+      saveBtn.textContent = '保存';
+      saveBtn.onclick = function() { saveGameHistoryLow(game.id, this); };
+
+      priceDiv.appendChild(priceInput);
+      priceDiv.appendChild(saveBtn);
+
+      const pushDiv = document.createElement('div');
+      pushDiv.style.marginLeft = '20px';
+
+      const pushLabel = document.createElement('label');
+      const pushCheckbox = document.createElement('input');
+      pushCheckbox.type = 'checkbox';
+      pushCheckbox.className = 'game-push-enabled';
+      pushCheckbox.checked = game.push_enabled || false;
+      pushLabel.appendChild(pushCheckbox);
+      pushLabel.appendChild(document.createTextNode(' 启用推送提醒'));
+
+      const percentDiv = document.createElement('div');
+      percentDiv.style.marginTop = '6px';
+
+      const dropInput = document.createElement('input');
+      dropInput.type = 'number';
+      dropInput.className = 'game-drop-percent';
+      dropInput.min = '0';
+      dropInput.max = '100';
+      dropInput.placeholder = '跌幅% (优先于全局)';
+      dropInput.value = game.push_drop_percent || '';
+      dropInput.style.width = '100px';
+
+      const riseInput = document.createElement('input');
+      riseInput.type = 'number';
+      riseInput.className = 'game-rise-percent';
+      riseInput.min = '0';
+      riseInput.max = '100';
+      riseInput.placeholder = '涨幅% (优先于全局)';
+      riseInput.value = game.push_rise_percent || '';
+      riseInput.style.width = '100px';
+      riseInput.style.marginLeft = '6px';
+
+      percentDiv.appendChild(dropInput);
+      percentDiv.appendChild(riseInput);
+
+      pushDiv.appendChild(pushLabel);
+      pushDiv.appendChild(percentDiv);
+
+      settingsRow.appendChild(priceDiv);
+      settingsRow.appendChild(pushDiv);
+
+      item.appendChild(nameSpan);
+      item.appendChild(priceSpan);
+      item.appendChild(settingsRow);
+
+      container.appendChild(item);
+    });
   } catch (e) {
     container.innerHTML = '<p style="color: var(--danger)">加载失败</p>';
     console.error("加载游戏列表失败:", e);
@@ -743,41 +816,43 @@ async function saveGameHistoryLow(gameId, btn) {
       }),
     });
 
+    if (!res.ok) {
+      throw new Error("保存史低价格失败");
+    }
+
     // 同时保存游戏级的推送设置
     const pushEnabled = item.querySelector('.game-push-enabled').checked;
     const drop = item.querySelector('.game-drop-percent').value.trim();
     const rise = item.querySelector('.game-rise-percent').value.trim();
 
-    try {
-      await fetch(`${API_BASE}/api/games/${gameId}/push-settings`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          push_enabled: !!pushEnabled,
-          push_drop_percent: drop === '' ? null : parseFloat(drop),
-          push_rise_percent: rise === '' ? null : parseFloat(rise)
-        })
-      });
-    } catch (e) {
-      console.warn('保存游戏推送设置失败:', e);
+    const pushRes = await fetch(`${API_BASE}/api/games/${gameId}/push-settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        push_enabled: !!pushEnabled,
+        push_drop_percent: drop === '' ? null : parseFloat(drop),
+        push_rise_percent: rise === '' ? null : parseFloat(rise)
+      })
+    });
+
+    if (!pushRes.ok) {
+      throw new Error("保存推送设置失败");
     }
 
-    if (res.ok) {
-      btn.textContent = "✓ 已保存";
-      item.querySelector(".current-price").textContent = price
-        ? `当前史低: ¥${price}`
-        : "当前史低: 未设置";
-      setTimeout(() => {
-        btn.textContent = "保存";
-        btn.disabled = false;
-      }, 1500);
-    } else {
-      throw new Error("保存失败");
-    }
+    // 全部成功
+    btn.textContent = "✓ 已保存";
+    item.querySelector(".current-price").textContent = price
+      ? `当前史低: ¥${price}`
+      : "当前史低: 未设置";
+    setTimeout(() => {
+      btn.textContent = "保存";
+      btn.disabled = false;
+    }, 1500);
   } catch (e) {
     btn.textContent = "保存失败";
     btn.disabled = false;
-    console.error("保存史低价格失败:", e);
+    alert(`保存失败: ${e.message}`);
+    console.error("保存游戏设置失败:", e);
   }
 }
 
@@ -1150,16 +1225,24 @@ function renderPushKeysList() {
     return;
   }
 
-  container.innerHTML = window.pushmeKeys
-    .map(
-      (key, index) => `
-      <div class="pushme-key-item">
-        <span class="key-text">${key.slice(0, 6)}***${key.slice(-4)}</span>
-        <button class="btn-remove" onclick="removePushKey(${index})">删除</button>
-      </div>
-    `
-    )
-    .join("");
+  container.innerHTML = '';
+  window.pushmeKeys.forEach((key, index) => {
+    const item = document.createElement('div');
+    item.className = 'pushme-key-item';
+
+    const keySpan = document.createElement('span');
+    keySpan.className = 'key-text';
+    keySpan.textContent = `${key.slice(0, 6)}***${key.slice(-4)}`;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'btn-remove';
+    removeBtn.textContent = '删除';
+    removeBtn.onclick = function() { removePushKey(index); };
+
+    item.appendChild(keySpan);
+    item.appendChild(removeBtn);
+    container.appendChild(item);
+  });
 }
 
 // 添加 Push Key
