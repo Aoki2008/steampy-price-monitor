@@ -115,20 +115,10 @@ async function initDatabase() {
   } catch (e) {
     // 字段已存在，忽略错误
   }
-  // 数据库迁移：为 games 表添加推送相关字段（每个游戏的推送开关和阈值）
+  // 数据库迁移：为 games 表添加推送开关字段
   try {
     db.run(
       `ALTER TABLE games ADD COLUMN push_enabled INTEGER DEFAULT 1`
-    );
-  } catch (e) {}
-  try {
-    db.run(
-      `ALTER TABLE games ADD COLUMN push_drop_percent REAL DEFAULT NULL`
-    );
-  } catch (e) {}
-  try {
-    db.run(
-      `ALTER TABLE games ADD COLUMN push_rise_percent REAL DEFAULT NULL`
     );
   } catch (e) {}
 
@@ -234,16 +224,14 @@ async function checkPriceAlert(gameId, gameName, minPrice) {
 
   const alerts = [];
 
-  // 读取游戏级推送设置（若存在则覆盖全局设置）
+  // 读取游戏级推送设置
   const gameRow = db.exec(
-    "SELECT history_low_price, push_enabled, push_drop_percent, push_rise_percent FROM games WHERE id = ?",
+    "SELECT history_low_price, push_enabled FROM games WHERE id = ?",
     [gameId]
   );
   const gameVals = gameRow[0]?.values[0] || [];
   const historyLow = gameVals[0];
   const gamePushEnabled = gameVals[1] !== 0; // default true
-  const gameDropPercent = gameVals[2];
-  const gameRisePercent = gameVals[3];
 
   // 如果游戏级推送被关闭，则跳过
   if (gamePushEnabled === false) return;
@@ -255,7 +243,7 @@ async function checkPriceAlert(gameId, gameName, minPrice) {
     }
   }
 
-  // 2. 价格变动提醒（涨跌幅）
+  // 2. 价格变动提醒（涨跌幅）- 使用全局设置
   if (pushme.priceChangeAlert?.enabled) {
     const lastRecord = db.exec(
       `SELECT min_price FROM price_records WHERE game_id = ? ORDER BY recorded_at DESC LIMIT 1 OFFSET 1`,
@@ -264,15 +252,8 @@ async function checkPriceAlert(gameId, gameName, minPrice) {
     const lastPrice = lastRecord[0]?.values[0]?.[0];
     if (lastPrice && lastPrice > 0) {
       const changePercent = ((minPrice - lastPrice) / lastPrice) * 100;
-      // 优先使用游戏级阈值，如果未设置则使用全局
-      const dropPercent =
-        typeof gameDropPercent === "number" && !isNaN(gameDropPercent)
-          ? gameDropPercent
-          : pushme.priceChangeAlert?.dropPercent || 0;
-      const risePercent =
-        typeof gameRisePercent === "number" && !isNaN(gameRisePercent)
-          ? gameRisePercent
-          : pushme.priceChangeAlert?.risePercent || 0;
+      const dropPercent = pushme.priceChangeAlert?.dropPercent || 0;
+      const risePercent = pushme.priceChangeAlert?.risePercent || 0;
 
       if (dropPercent > 0 && changePercent <= -dropPercent) {
         alerts.push(
@@ -467,7 +448,7 @@ function startCronJob() {
 // ========== API ==========
 app.get("/api/games", (req, res) => {
   const r = db.exec(
-    "SELECT id, name, history_low_price, push_enabled, push_drop_percent, push_rise_percent, created_at FROM games"
+    "SELECT id, name, history_low_price, push_enabled, created_at FROM games"
   );
   res.json(
     r[0]?.values.map((row) => ({
@@ -475,23 +456,19 @@ app.get("/api/games", (req, res) => {
       name: row[1],
       history_low_price: row[2],
       push_enabled: row[3] === 1,
-      push_drop_percent: row[4],
-      push_rise_percent: row[5],
-      created_at: row[6],
+      created_at: row[4],
     })) || []
   );
 });
 
-// 更新游戏的推送设置（每个游戏的推送开关和阈值）
+// 更新游戏的推送设置（每个游戏的推送开关）
 app.put('/api/games/:id/push-settings', (req, res) => {
-  const { push_enabled, push_drop_percent, push_rise_percent } = req.body;
+  const { push_enabled } = req.body;
   const enabled = push_enabled ? 1 : 0;
-  const drop = push_drop_percent === null ? null : parseFloat(push_drop_percent);
-  const rise = push_rise_percent === null ? null : parseFloat(push_rise_percent);
 
   db.run(
-    'UPDATE games SET push_enabled = ?, push_drop_percent = ?, push_rise_percent = ? WHERE id = ?',
-    [enabled, drop, rise, req.params.id]
+    'UPDATE games SET push_enabled = ? WHERE id = ?',
+    [enabled, req.params.id]
   );
   saveDatabase();
   res.json({ success: true });

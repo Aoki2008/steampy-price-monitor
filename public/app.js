@@ -762,56 +762,8 @@ async function loadGamesHistoryLow() {
       pushLabel.appendChild(document.createTextNode('推送'));
       pushDiv.appendChild(pushLabel);
 
-      // 跌幅设置
-      const dropDiv = document.createElement('div');
-      const dropLabel = document.createElement('span');
-      dropLabel.className = 'game-settings-label';
-      dropLabel.textContent = '跌';
-
-      const dropInput = document.createElement('input');
-      dropInput.type = 'number';
-      dropInput.className = 'game-drop-percent';
-      dropInput.min = '0';
-      dropInput.max = '100';
-      dropInput.placeholder = '10';
-      dropInput.value = game.push_drop_percent || '';
-      dropInput.title = '跌幅百分比（优先于全局）';
-
-      const dropUnit = document.createElement('span');
-      dropUnit.className = 'game-settings-label';
-      dropUnit.textContent = '%';
-
-      dropDiv.appendChild(dropLabel);
-      dropDiv.appendChild(dropInput);
-      dropDiv.appendChild(dropUnit);
-
-      // 涨幅设置
-      const riseDiv = document.createElement('div');
-      const riseLabel = document.createElement('span');
-      riseLabel.className = 'game-settings-label';
-      riseLabel.textContent = '涨';
-
-      const riseInput = document.createElement('input');
-      riseInput.type = 'number';
-      riseInput.className = 'game-rise-percent';
-      riseInput.min = '0';
-      riseInput.max = '100';
-      riseInput.placeholder = '5';
-      riseInput.value = game.push_rise_percent || '';
-      riseInput.title = '涨幅百分比（优先于全局）';
-
-      const riseUnit = document.createElement('span');
-      riseUnit.className = 'game-settings-label';
-      riseUnit.textContent = '%';
-
-      riseDiv.appendChild(riseLabel);
-      riseDiv.appendChild(riseInput);
-      riseDiv.appendChild(riseUnit);
-
       settingsRow.appendChild(priceDiv);
       settingsRow.appendChild(pushDiv);
-      settingsRow.appendChild(dropDiv);
-      settingsRow.appendChild(riseDiv);
 
       item.appendChild(nameSpan);
       item.appendChild(priceSpan);
@@ -849,16 +801,12 @@ async function saveGameHistoryLow(gameId, btn) {
 
     // 同时保存游戏级的推送设置
     const pushEnabled = item.querySelector('.game-push-enabled').checked;
-    const drop = item.querySelector('.game-drop-percent').value.trim();
-    const rise = item.querySelector('.game-rise-percent').value.trim();
 
     const pushRes = await fetch(`${API_BASE}/api/games/${gameId}/push-settings`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        push_enabled: !!pushEnabled,
-        push_drop_percent: drop === '' ? null : parseFloat(drop),
-        push_rise_percent: rise === '' ? null : parseFloat(rise)
+        push_enabled: !!pushEnabled
       })
     });
 
@@ -869,8 +817,8 @@ async function saveGameHistoryLow(gameId, btn) {
     // 全部成功
     btn.textContent = "✓ 已保存";
     item.querySelector(".current-price").textContent = price
-      ? `当前史低: ¥${price}`
-      : "当前史低: 未设置";
+      ? `¥${price}`
+      : '未设置';
     setTimeout(() => {
       btn.textContent = "保存";
       btn.disabled = false;

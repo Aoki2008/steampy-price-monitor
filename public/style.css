@@ -1006,16 +1006,6 @@ body {
   white-space: nowrap;
 }
 
-.game-history-item .game-drop-percent,
-.game-history-item .game-rise-percent {
-  width: 70px !important;
-}
-
-.game-settings-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
 /* ========== 子选项 ========== */
 .sub-options {
   margin-top: 8px;
