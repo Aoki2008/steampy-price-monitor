@@ -690,14 +690,37 @@ app.put("/api/config", (req, res) => {
 
     if (typeof pushme.enabled === "boolean")
       config.pushme.enabled = pushme.enabled;
-    if (pushme.pushKey?.length > 5) config.pushme.pushKey = pushme.pushKey;
+    // 支持新的 pushKeys 数组，同时兼容旧的 pushKey 字段
+    if (Array.isArray(pushme.pushKeys)) {
+      config.pushme.pushKeys = pushme.pushKeys.filter(Boolean);
+    } else if (pushme.pushKey?.length > 5) {
+      config.pushme.pushKey = pushme.pushKey;
+      // 兼容：如果 pushKey 被设置，则保证 pushKeys 中包含该 key
+      if (!Array.isArray(config.pushme.pushKeys)) config.pushme.pushKeys = [];
+      if (!config.pushme.pushKeys.includes(pushme.pushKey))
+        config.pushme.pushKeys.push(pushme.pushKey);
+    }
 
-    if (pushme.priceAlert) {
-      if (!config.pushme.priceAlert) config.pushme.priceAlert = {};
-      if (typeof pushme.priceAlert.enabled === "boolean")
-        config.pushme.priceAlert.enabled = pushme.priceAlert.enabled;
-      if (typeof pushme.priceAlert.threshold === "number")
-        config.pushme.priceAlert.threshold = pushme.priceAlert.threshold;
+    // 推送冷却时间
+    if (typeof pushme.cooldownMinutes === "number")
+      config.pushme.cooldownMinutes = pushme.cooldownMinutes;
+
+    // 史低提醒
+    if (pushme.historyLowAlert) {
+      if (!config.pushme.historyLowAlert) config.pushme.historyLowAlert = {};
+      if (typeof pushme.historyLowAlert.enabled === "boolean")
+        config.pushme.historyLowAlert.enabled = pushme.historyLowAlert.enabled;
+    }
+
+    // 价格变动提醒
+    if (pushme.priceChangeAlert) {
+      if (!config.pushme.priceChangeAlert) config.pushme.priceChangeAlert = {};
+      if (typeof pushme.priceChangeAlert.enabled === "boolean")
+        config.pushme.priceChangeAlert.enabled = pushme.priceChangeAlert.enabled;
+      if (typeof pushme.priceChangeAlert.dropPercent === "number")
+        config.pushme.priceChangeAlert.dropPercent = pushme.priceChangeAlert.dropPercent;
+      if (typeof pushme.priceChangeAlert.risePercent === "number")
+        config.pushme.priceChangeAlert.risePercent = pushme.priceChangeAlert.risePercent;
     }
 
     if (pushme.dailyReport) {
