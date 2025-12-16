@@ -987,8 +987,17 @@ async function testPushMe() {
 // 手动发送每日报告
 async function sendDailyReport() {
   try {
-    await fetch(`${API_BASE}/api/pushme/daily-report`, { method: "POST" });
-    alert("每日报告已发送！");
+    const res = await fetch(`${API_BASE}/api/pushme/daily-report`, { method: "POST" });
+    const result = await res.json();
+
+    if (result.success) {
+      const msg = result.successCount
+        ? `每日报告已发送！\n\n发送成功: ${result.successCount}/${result.total}`
+        : "每日报告已发送！";
+      alert(msg);
+    } else {
+      alert("发送失败: " + (result.reason || "未知错误"));
+    }
   } catch (e) {
     alert("发送失败: " + e.message);
   }

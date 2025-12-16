@@ -272,12 +272,28 @@ async function sendErrorAlert(gameId, error) {
 
 // 每日报告
 async function sendDailyReport() {
-  if (!config.pushme?.dailyReport?.enabled) return;
+  console.log('[每日报告] 开始生成每日报告');
+
+  if (!config.pushme?.dailyReport?.enabled) {
+    console.log('[每日报告] 失败: 每日报告功能未启用');
+    return { success: false, reason: "每日报告功能未启用" };
+  }
+
+  if (!config.pushme?.enabled) {
+    console.log('[每日报告] 失败: PushMe 功能未启用');
+    return { success: false, reason: "PushMe功能未启用" };
+  }
 
   const games = db.exec("SELECT id, name FROM games");
-  if (!games[0]?.values?.length) return;
+  if (!games[0]?.values?.length) {
+    console.log('[每日报告] 失败: 没有监控的游戏');
+    return { success: false, reason: "没有监控的游戏" };
+  }
+
+  console.log(`[每日报告] 正在为 ${games[0].values.length} 个游戏生成报告`);
 
   let report = "## 📊 每日价格报告\n\n";
+  let gameCount = 0;
 
   for (const [gameId, gameName] of games[0].values) {
     const stats = db.exec(
@@ -297,12 +313,27 @@ async function sendDailyReport() {
       report += `- 今日最低: ¥${min.toFixed(2)}\n`;
       report += `- 今日最高: ¥${max.toFixed(2)}\n`;
       report += `- 今日均价: ¥${avg.toFixed(2)}\n\n`;
+      gameCount++;
     }
+  }
+
+  if (gameCount === 0) {
+    console.log('[每日报告] 失败: 过去24小时内没有价格数据');
+    return { success: false, reason: "过去24小时内没有价格数据" };
   }
 
   report += `---\n⏰ ${new Date().toLocaleString()}`;
 
-  await sendPushMe("📊 Steam Key 每日报告", report);
+  console.log(`[每日报告] 报告已生成，包含 ${gameCount} 个游戏的数据`);
+  const result = await sendPushMe("📊 Steam Key 每日报告", report);
+
+  if (result.success) {
+    console.log('[每日报告] 发送成功');
+  } else {
+    console.log(`[每日报告] 发送失败: ${result.reason}`);
+  }
+
+  return result;
 }
 
 let dailyReportJob = null;
@@ -725,8 +756,10 @@ app.post("/api/pushme/test", async (req, res) => {
 
 // 手动触发每日报告
 app.post("/api/pushme/daily-report", async (req, res) => {
-  await sendDailyReport();
-  res.json({ success: true });
+  console.log('[每日报告] 收到手动触发请求');
+  const result = await sendDailyReport();
+  console.log('[每日报告] 手动触发结果:', result);
+  res.json(result || { success: true });
 });
 
 app.post("/api/collect", async (req, res) => {
