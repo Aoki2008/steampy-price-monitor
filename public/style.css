@@ -143,6 +143,13 @@ body {
   min-height: calc(100vh - 64px);
 }
 
+/* 移动端主体布局调整 */
+@media (max-width: 768px) {
+  .main-wrapper {
+    margin-top: 0;
+  }
+}
+
 /* ========== 侧边栏 ========== */
 .sidebar {
   width: 260px;
@@ -1064,6 +1071,7 @@ select {
     padding: 12px 16px;
     flex-wrap: wrap;
     gap: 12px;
+    height: auto;
   }
 
   .navbar-brand {
@@ -1140,5 +1148,67 @@ select {
 
   .analysis-tabs {
     flex-wrap: wrap;
+  }
+
+  /* 移动端游戏管理标签页布局优化 */
+  .game-history-item {
+    gap: 6px;
+    padding: 8px 6px;
+  }
+
+  .game-history-item .game-name {
+    flex: 0 0 auto;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100px;
+  }
+
+  .game-history-item .current-price {
+    display: none;
+  }
+
+  .game-settings-row {
+    gap: 6px;
+    flex: 1 1 auto;
+    justify-content: space-between;
+    padding-left: 4px;
+  }
+
+  .game-settings-row > div {
+    gap: 4px;
+  }
+
+  .game-history-item input[type="number"] {
+    width: 55px;
+    padding: 4px 6px;
+    font-size: 13px;
+  }
+
+  .game-history-item .btn-save {
+    padding: 4px 8px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .game-history-item label {
+    font-size: 12px;
+    white-space: nowrap;
+    gap: 4px;
+  }
+
+  .game-history-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* 设置面板优化 */
+  .settings-section {
+    padding: 0 12px;
+  }
+
+  .modal-content {
+    max-width: 95vw;
   }
 }
