@@ -610,16 +610,27 @@ async function loadGamesHistoryLow() {
       <div class="game-history-item" data-id="${game.id}">
         <span class="game-name">${game.name || game.id}</span>
         <span class="current-price">当前史低: ${
-          game.history_low_price !== null
-            ? "¥" + game.history_low_price
-            : "未设置"
+          game.history_low_price !== null ? "¥" + game.history_low_price : "未设置"
         }</span>
-        <input type="number" step="0.01" min="0" placeholder="史低价格" value="${
-          game.history_low_price || ""
-        }" />
-        <button class="btn btn-sm btn-primary btn-save" onclick="saveGameHistoryLow('${
-          game.id
-        }', this)">保存</button>
+        <div class="game-settings-row">
+          <div>
+            <input type="number" step="0.01" min="0" placeholder="史低价格" value="${
+              game.history_low_price || ""
+            }" />
+            <button class="btn btn-sm btn-primary btn-save" onclick="saveGameHistoryLow('${game.id}', this)">保存</button>
+          </div>
+          <div style="margin-left: 20px">
+            <label><input type="checkbox" class="game-push-enabled" ${game.push_enabled ? 'checked' : ''} /> 启用推送提醒</label>
+            <div style="margin-top:6px">
+              <input type="number" class="game-drop-percent" min="0" max="100" placeholder="跌幅% (优先于全局)" value="${
+                game.push_drop_percent || ""
+              }" style="width:100px" />
+              <input type="number" class="game-rise-percent" min="0" max="100" placeholder="涨幅% (优先于全局)" value="${
+                game.push_rise_percent || ""
+              }" style="width:100px;margin-left:6px" />
+            </div>
+          </div>
+        </div>
       </div>
     `
       )
@@ -647,6 +658,25 @@ async function saveGameHistoryLow(gameId, btn) {
         history_low_price: price === "" ? null : parseFloat(price),
       }),
     });
+
+    // 同时保存游戏级的推送设置
+    const pushEnabled = item.querySelector('.game-push-enabled').checked;
+    const drop = item.querySelector('.game-drop-percent').value.trim();
+    const rise = item.querySelector('.game-rise-percent').value.trim();
+
+    try {
+      await fetch(`${API_BASE}/api/games/${gameId}/push-settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          push_enabled: !!pushEnabled,
+          push_drop_percent: drop === '' ? null : parseFloat(drop),
+          push_rise_percent: rise === '' ? null : parseFloat(rise)
+        })
+      });
+    } catch (e) {
+      console.warn('保存游戏推送设置失败:', e);
+    }
 
     if (res.ok) {
       btn.textContent = "✓ 已保存";
