@@ -713,8 +713,12 @@ async function loadSettings() {
     document.getElementById("pushme-enabled").checked = pushme.enabled || false;
     // 加载 Push Keys 列表
     window.pushmeKeys = pushme.pushKeys || [];
-    // 兼容旧配置
-    if (pushme.pushKey && !window.pushmeKeys.includes(pushme.pushKey)) {
+    // 兼容旧配置：如果后端返回的 pushKey 看起来是被前端或后端屏蔽（包含'*'），则不自动加入
+    if (
+      pushme.pushKey &&
+      !pushme.pushKey.includes("*") &&
+      !window.pushmeKeys.includes(pushme.pushKey)
+    ) {
       window.pushmeKeys.push(pushme.pushKey);
     }
     renderPushKeysList();
@@ -774,7 +778,8 @@ async function saveSettings() {
   // PushMe 配置
   body.pushme = {
     enabled: document.getElementById("pushme-enabled").checked,
-    pushKeys: window.pushmeKeys || [],
+    // 只提交看起来有效的 pushKeys（过滤掉被屏蔽的或空字符串）
+    pushKeys: (window.pushmeKeys || []).filter((k) => k && !k.includes("*")),
     // 推送冷却时间
     cooldownMinutes:
       parseInt(document.getElementById("pushme-cooldown").value) || 60,
@@ -823,7 +828,12 @@ async function saveSettings() {
 // PushMe 测试推送
 async function testPushMe() {
   try {
-    const res = await fetch(`${API_BASE}/api/pushme/test`, { method: "POST" });
+    // 允许测试使用未保存的 keys：将当前窗口中的 pushKeys 作为测试参数提交
+    const res = await fetch(`${API_BASE}/api/pushme/test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pushKeys: (window.pushmeKeys || []).filter((k) => k && !k.includes("*")) }),
+    });
     const result = await res.json();
     if (result.success) {
       alert("测试推送已发送！请检查手机通知");

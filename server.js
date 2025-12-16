@@ -157,10 +157,13 @@ app.use(express.static("public"));
 
 // ========== PushMe 推送服务 ==========
 
-async function sendPushMe(title, content) {
-  const pushKeys = config.pushme?.pushKeys || [];
-  // 兼容旧配置：如果有单个 pushKey，也加入列表
-  if (config.pushme?.pushKey && !pushKeys.includes(config.pushme.pushKey)) {
+async function sendPushMe(title, content, pushKeysOverride) {
+  // 使用覆盖的 pushKeys（用于测试无需先保存设置）或全局配置
+  let pushKeys = Array.isArray(pushKeysOverride)
+    ? pushKeysOverride.filter((k) => k && !k.includes("*"))
+    : config.pushme?.pushKeys || [];
+  // 兼容旧配置：如果有单个 pushKey，也加入列表（如果未被屏蔽）
+  if (config.pushme?.pushKey && !config.pushme.pushKey.includes("*") && !pushKeys.includes(config.pushme.pushKey)) {
     pushKeys.push(config.pushme.pushKey);
   }
 
@@ -659,9 +662,13 @@ app.get("/api/config", (req, res) => {
     accessToken: config.accessToken ? "***" + config.accessToken.slice(-6) : "",
     pushme: {
       ...config.pushme,
-      pushKey: config.pushme?.pushKey
-        ? "***" + config.pushme.pushKey.slice(-6)
-        : "",
+      // 如果已经存在 pushKeys 列表，则不要返回被屏蔽的 pushKey（避免前端把屏蔽值当作真实 key 保存回去）
+      pushKey:
+        Array.isArray(config.pushme?.pushKeys) && config.pushme.pushKeys.length > 0
+          ? ""
+          : config.pushme?.pushKey
+          ? "***" + config.pushme.pushKey.slice(-6)
+          : "",
     },
     cronStatus: cronJob ? "运行中" : "已停止",
   });
@@ -692,13 +699,21 @@ app.put("/api/config", (req, res) => {
       config.pushme.enabled = pushme.enabled;
     // 支持新的 pushKeys 数组，同时兼容旧的 pushKey 字段
     if (Array.isArray(pushme.pushKeys)) {
-      config.pushme.pushKeys = pushme.pushKeys.filter(Boolean);
+      // 过滤掉空值或被屏蔽的（包含'*'）条目
+      config.pushme.pushKeys = pushme.pushKeys.filter((k) => k && !k.includes("*"));
+      // 如果明确提交了空数组，清除兼容旧字段 pushKey
+      if (config.pushme.pushKeys.length === 0 && config.pushme.pushKey) {
+        delete config.pushme.pushKey;
+      }
     } else if (pushme.pushKey?.length > 5) {
-      config.pushme.pushKey = pushme.pushKey;
-      // 兼容：如果 pushKey 被设置，则保证 pushKeys 中包含该 key
-      if (!Array.isArray(config.pushme.pushKeys)) config.pushme.pushKeys = [];
-      if (!config.pushme.pushKeys.includes(pushme.pushKey))
-        config.pushme.pushKeys.push(pushme.pushKey);
+      // 仅在 pushKey 看起来不是被屏蔽（不包含'*'）时保存
+      if (!pushme.pushKey.includes("*")) {
+        config.pushme.pushKey = pushme.pushKey;
+        // 兼容：如果 pushKey 被设置，则保证 pushKeys 中包含该 key
+        if (!Array.isArray(config.pushme.pushKeys)) config.pushme.pushKeys = [];
+        if (!config.pushme.pushKeys.includes(pushme.pushKey))
+          config.pushme.pushKeys.push(pushme.pushKey);
+      }
     }
 
     // 推送冷却时间
@@ -750,9 +765,11 @@ app.put("/api/config", (req, res) => {
 
 // PushMe 测试推送
 app.post("/api/pushme/test", async (req, res) => {
+  const providedKeys = req.body?.pushKeys;
   const result = await sendPushMe(
     "🔔 测试推送",
-    `这是一条来自 **Steam Key 价格监控** 的测试消息\n\n⏰ ${new Date().toLocaleString()}`
+    `这是一条来自 **Steam Key 价格监控** 的测试消息\n\n⏰ ${new Date().toLocaleString()}`,
+    providedKeys
   );
   res.json(result);
 });
