@@ -694,16 +694,27 @@ async function loadGamesHistoryLow() {
       <div class="game-history-item" data-id="${game.id}">
         <span class="game-name">${game.name || game.id}</span>
         <span class="current-price">当前史低: ${
-          game.history_low_price !== null
-            ? "¥" + game.history_low_price
-            : "未设置"
+          game.history_low_price !== null ? "¥" + game.history_low_price : "未设置"
         }</span>
-        <input type="number" step="0.01" min="0" placeholder="史低价格" value="${
-          game.history_low_price || ""
-        }" />
-        <button class="btn btn-sm btn-primary btn-save" onclick="saveGameHistoryLow('${
-          game.id
-        }', this)">保存</button>
+        <div class="game-settings-row">
+          <div>
+            <input type="number" step="0.01" min="0" placeholder="史低价格" value="${
+              game.history_low_price || ""
+            }" />
+            <button class="btn btn-sm btn-primary btn-save" onclick="saveGameHistoryLow('${game.id}', this)">保存</button>
+          </div>
+          <div style="margin-left: 20px">
+            <label><input type="checkbox" class="game-push-enabled" ${game.push_enabled ? 'checked' : ''} /> 启用推送提醒</label>
+            <div style="margin-top:6px">
+              <input type="number" class="game-drop-percent" min="0" max="100" placeholder="跌幅% (优先于全局)" value="${
+                game.push_drop_percent || ""
+              }" style="width:100px" />
+              <input type="number" class="game-rise-percent" min="0" max="100" placeholder="涨幅% (优先于全局)" value="${
+                game.push_rise_percent || ""
+              }" style="width:100px;margin-left:6px" />
+            </div>
+          </div>
+        </div>
       </div>
     `
       )
@@ -731,6 +742,25 @@ async function saveGameHistoryLow(gameId, btn) {
         history_low_price: price === "" ? null : parseFloat(price),
       }),
     });
+
+    // 同时保存游戏级的推送设置
+    const pushEnabled = item.querySelector('.game-push-enabled').checked;
+    const drop = item.querySelector('.game-drop-percent').value.trim();
+    const rise = item.querySelector('.game-rise-percent').value.trim();
+
+    try {
+      await fetch(`${API_BASE}/api/games/${gameId}/push-settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          push_enabled: !!pushEnabled,
+          push_drop_percent: drop === '' ? null : parseFloat(drop),
+          push_rise_percent: rise === '' ? null : parseFloat(rise)
+        })
+      });
+    } catch (e) {
+      console.warn('保存游戏推送设置失败:', e);
+    }
 
     if (res.ok) {
       btn.textContent = "✓ 已保存";
@@ -767,8 +797,12 @@ async function loadSettings() {
     document.getElementById("pushme-enabled").checked = pushme.enabled || false;
     // 加载 Push Keys 列表
     window.pushmeKeys = pushme.pushKeys || [];
-    // 兼容旧配置
-    if (pushme.pushKey && !window.pushmeKeys.includes(pushme.pushKey)) {
+    // 兼容旧配置：如果后端返回的 pushKey 看起来是被前端或后端屏蔽（包含'*'），则不自动加入
+    if (
+      pushme.pushKey &&
+      !pushme.pushKey.includes("*") &&
+      !window.pushmeKeys.includes(pushme.pushKey)
+    ) {
       window.pushmeKeys.push(pushme.pushKey);
     }
     renderPushKeysList();
@@ -828,7 +862,8 @@ async function saveSettings() {
   // PushMe 配置
   body.pushme = {
     enabled: document.getElementById("pushme-enabled").checked,
-    pushKeys: window.pushmeKeys || [],
+    // 只提交看起来有效的 pushKeys（过滤掉被屏蔽的或空字符串）
+    pushKeys: (window.pushmeKeys || []).filter((k) => k && !k.includes("*")),
     // 推送冷却时间
     cooldownMinutes:
       parseInt(document.getElementById("pushme-cooldown").value) || 60,
@@ -877,7 +912,12 @@ async function saveSettings() {
 // PushMe 测试推送
 async function testPushMe() {
   try {
-    const res = await fetch(`${API_BASE}/api/pushme/test`, { method: "POST" });
+    // 允许测试使用未保存的 keys：将当前窗口中的 pushKeys 作为测试参数提交
+    const res = await fetch(`${API_BASE}/api/pushme/test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pushKeys: (window.pushmeKeys || []).filter((k) => k && !k.includes("*")) }),
+    });
     const result = await res.json();
     if (result.success) {
       alert("测试推送已发送！请检查手机通知");

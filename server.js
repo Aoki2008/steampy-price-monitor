@@ -115,6 +115,22 @@ async function initDatabase() {
   } catch (e) {
     // 字段已存在，忽略错误
   }
+  // 数据库迁移：为 games 表添加推送相关字段（每个游戏的推送开关和阈值）
+  try {
+    db.run(
+      `ALTER TABLE games ADD COLUMN push_enabled INTEGER DEFAULT 1`
+    );
+  } catch (e) {}
+  try {
+    db.run(
+      `ALTER TABLE games ADD COLUMN push_drop_percent REAL DEFAULT NULL`
+    );
+  } catch (e) {}
+  try {
+    db.run(
+      `ALTER TABLE games ADD COLUMN push_rise_percent REAL DEFAULT NULL`
+    );
+  } catch (e) {}
 
   const games = db.exec("SELECT COUNT(*) FROM games");
   if (games[0]?.values[0][0] === 0) {
@@ -141,10 +157,13 @@ app.use(express.static("public"));
 
 // ========== PushMe 推送服务 ==========
 
-async function sendPushMe(title, content) {
-  const pushKeys = config.pushme?.pushKeys || [];
-  // 兼容旧配置：如果有单个 pushKey，也加入列表
-  if (config.pushme?.pushKey && !pushKeys.includes(config.pushme.pushKey)) {
+async function sendPushMe(title, content, pushKeysOverride) {
+  // 使用覆盖的 pushKeys（用于测试无需先保存设置）或全局配置
+  let pushKeys = Array.isArray(pushKeysOverride)
+    ? pushKeysOverride.filter((k) => k && !k.includes("*"))
+    : config.pushme?.pushKeys || [];
+  // 兼容旧配置：如果有单个 pushKey，也加入列表（如果未被屏蔽）
+  if (config.pushme?.pushKey && !config.pushme.pushKey.includes("*") && !pushKeys.includes(config.pushme.pushKey)) {
     pushKeys.push(config.pushme.pushKey);
   }
 
@@ -215,12 +234,22 @@ async function checkPriceAlert(gameId, gameName, minPrice) {
 
   const alerts = [];
 
-  // 1. 史低提醒
+  // 读取游戏级推送设置（若存在则覆盖全局设置）
+  const gameRow = db.exec(
+    "SELECT history_low_price, push_enabled, push_drop_percent, push_rise_percent FROM games WHERE id = ?",
+    [gameId]
+  );
+  const gameVals = gameRow[0]?.values[0] || [];
+  const historyLow = gameVals[0];
+  const gamePushEnabled = gameVals[1] !== 0; // default true
+  const gameDropPercent = gameVals[2];
+  const gameRisePercent = gameVals[3];
+
+  // 如果游戏级推送被关闭，则跳过
+  if (gamePushEnabled === false) return;
+
+  // 1. 史低提醒（保留原有逻辑，使用游戏级史低）
   if (pushme.historyLowAlert?.enabled) {
-    const game = db.exec("SELECT history_low_price FROM games WHERE id = ?", [
-      gameId,
-    ]);
-    const historyLow = game[0]?.values[0]?.[0];
     if (historyLow !== null && minPrice <= historyLow) {
       alerts.push(`🏆 达到/低于史低 ¥${historyLow}`);
     }
@@ -235,7 +264,15 @@ async function checkPriceAlert(gameId, gameName, minPrice) {
     const lastPrice = lastRecord[0]?.values[0]?.[0];
     if (lastPrice && lastPrice > 0) {
       const changePercent = ((minPrice - lastPrice) / lastPrice) * 100;
-      const { dropPercent, risePercent } = pushme.priceChangeAlert;
+      // 优先使用游戏级阈值，如果未设置则使用全局
+      const dropPercent =
+        typeof gameDropPercent === "number" && !isNaN(gameDropPercent)
+          ? gameDropPercent
+          : pushme.priceChangeAlert?.dropPercent || 0;
+      const risePercent =
+        typeof gameRisePercent === "number" && !isNaN(gameRisePercent)
+          ? gameRisePercent
+          : pushme.priceChangeAlert?.risePercent || 0;
 
       if (dropPercent > 0 && changePercent <= -dropPercent) {
         alerts.push(
@@ -430,16 +467,34 @@ function startCronJob() {
 // ========== API ==========
 app.get("/api/games", (req, res) => {
   const r = db.exec(
-    "SELECT id, name, history_low_price, created_at FROM games"
+    "SELECT id, name, history_low_price, push_enabled, push_drop_percent, push_rise_percent, created_at FROM games"
   );
   res.json(
     r[0]?.values.map((row) => ({
       id: row[0],
       name: row[1],
       history_low_price: row[2],
-      created_at: row[3],
+      push_enabled: row[3] === 1,
+      push_drop_percent: row[4],
+      push_rise_percent: row[5],
+      created_at: row[6],
     })) || []
   );
+});
+
+// 更新游戏的推送设置（每个游戏的推送开关和阈值）
+app.put('/api/games/:id/push-settings', (req, res) => {
+  const { push_enabled, push_drop_percent, push_rise_percent } = req.body;
+  const enabled = push_enabled ? 1 : 0;
+  const drop = push_drop_percent === null ? null : parseFloat(push_drop_percent);
+  const rise = push_rise_percent === null ? null : parseFloat(push_rise_percent);
+
+  db.run(
+    'UPDATE games SET push_enabled = ?, push_drop_percent = ?, push_rise_percent = ? WHERE id = ?',
+    [enabled, drop, rise, req.params.id]
+  );
+  saveDatabase();
+  res.json({ success: true });
 });
 
 app.post("/api/games", (req, res) => {
@@ -607,9 +662,13 @@ app.get("/api/config", (req, res) => {
     accessToken: config.accessToken ? "***" + config.accessToken.slice(-6) : "",
     pushme: {
       ...config.pushme,
-      pushKey: config.pushme?.pushKey
-        ? "***" + config.pushme.pushKey.slice(-6)
-        : "",
+      // 如果已经存在 pushKeys 列表，则不要返回被屏蔽的 pushKey（避免前端把屏蔽值当作真实 key 保存回去）
+      pushKey:
+        Array.isArray(config.pushme?.pushKeys) && config.pushme.pushKeys.length > 0
+          ? ""
+          : config.pushme?.pushKey
+          ? "***" + config.pushme.pushKey.slice(-6)
+          : "",
     },
     cronStatus: cronJob ? "运行中" : "已停止",
   });
@@ -638,14 +697,45 @@ app.put("/api/config", (req, res) => {
 
     if (typeof pushme.enabled === "boolean")
       config.pushme.enabled = pushme.enabled;
-    if (pushme.pushKey?.length > 5) config.pushme.pushKey = pushme.pushKey;
+    // 支持新的 pushKeys 数组，同时兼容旧的 pushKey 字段
+    if (Array.isArray(pushme.pushKeys)) {
+      // 过滤掉空值或被屏蔽的（包含'*'）条目
+      config.pushme.pushKeys = pushme.pushKeys.filter((k) => k && !k.includes("*"));
+      // 如果明确提交了空数组，清除兼容旧字段 pushKey
+      if (config.pushme.pushKeys.length === 0 && config.pushme.pushKey) {
+        delete config.pushme.pushKey;
+      }
+    } else if (pushme.pushKey?.length > 5) {
+      // 仅在 pushKey 看起来不是被屏蔽（不包含'*'）时保存
+      if (!pushme.pushKey.includes("*")) {
+        config.pushme.pushKey = pushme.pushKey;
+        // 兼容：如果 pushKey 被设置，则保证 pushKeys 中包含该 key
+        if (!Array.isArray(config.pushme.pushKeys)) config.pushme.pushKeys = [];
+        if (!config.pushme.pushKeys.includes(pushme.pushKey))
+          config.pushme.pushKeys.push(pushme.pushKey);
+      }
+    }
 
-    if (pushme.priceAlert) {
-      if (!config.pushme.priceAlert) config.pushme.priceAlert = {};
-      if (typeof pushme.priceAlert.enabled === "boolean")
-        config.pushme.priceAlert.enabled = pushme.priceAlert.enabled;
-      if (typeof pushme.priceAlert.threshold === "number")
-        config.pushme.priceAlert.threshold = pushme.priceAlert.threshold;
+    // 推送冷却时间
+    if (typeof pushme.cooldownMinutes === "number")
+      config.pushme.cooldownMinutes = pushme.cooldownMinutes;
+
+    // 史低提醒
+    if (pushme.historyLowAlert) {
+      if (!config.pushme.historyLowAlert) config.pushme.historyLowAlert = {};
+      if (typeof pushme.historyLowAlert.enabled === "boolean")
+        config.pushme.historyLowAlert.enabled = pushme.historyLowAlert.enabled;
+    }
+
+    // 价格变动提醒
+    if (pushme.priceChangeAlert) {
+      if (!config.pushme.priceChangeAlert) config.pushme.priceChangeAlert = {};
+      if (typeof pushme.priceChangeAlert.enabled === "boolean")
+        config.pushme.priceChangeAlert.enabled = pushme.priceChangeAlert.enabled;
+      if (typeof pushme.priceChangeAlert.dropPercent === "number")
+        config.pushme.priceChangeAlert.dropPercent = pushme.priceChangeAlert.dropPercent;
+      if (typeof pushme.priceChangeAlert.risePercent === "number")
+        config.pushme.priceChangeAlert.risePercent = pushme.priceChangeAlert.risePercent;
     }
 
     if (pushme.dailyReport) {
@@ -675,9 +765,11 @@ app.put("/api/config", (req, res) => {
 
 // PushMe 测试推送
 app.post("/api/pushme/test", async (req, res) => {
+  const providedKeys = req.body?.pushKeys;
   const result = await sendPushMe(
     "🔔 测试推送",
-    `这是一条来自 **Steam Key 价格监控** 的测试消息\n\n⏰ ${new Date().toLocaleString()}`
+    `这是一条来自 **Steam Key 价格监控** 的测试消息\n\n⏰ ${new Date().toLocaleString()}`,
+    providedKeys
   );
   res.json(result);
 });
