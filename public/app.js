@@ -715,25 +715,41 @@ async function loadGamesHistoryLow() {
       item.className = 'game-history-item';
       item.dataset.id = game.id;
 
+      // 游戏名称
       const nameSpan = document.createElement('span');
       nameSpan.className = 'game-name';
       nameSpan.textContent = game.name || game.id;
 
+      // 当前史低价格显示
       const priceSpan = document.createElement('span');
       priceSpan.className = 'current-price';
       priceSpan.textContent = game.history_low_price !== null
         ? `当前史低: ¥${game.history_low_price}`
         : '当前史低: 未设置';
 
+      // 设置行容器
       const settingsRow = document.createElement('div');
       settingsRow.className = 'game-settings-row';
 
+      // 左侧：史低价格设置
       const priceDiv = document.createElement('div');
+
+      const priceLabel = document.createElement('label');
+      priceLabel.textContent = '史低价格';
+      priceLabel.style.fontSize = '13px';
+      priceLabel.style.color = 'var(--text-secondary)';
+      priceLabel.style.marginBottom = '4px';
+
+      const priceInputWrapper = document.createElement('div');
+      priceInputWrapper.style.display = 'flex';
+      priceInputWrapper.style.gap = '8px';
+      priceInputWrapper.style.alignItems = 'center';
+
       const priceInput = document.createElement('input');
       priceInput.type = 'number';
       priceInput.step = '0.01';
       priceInput.min = '0';
-      priceInput.placeholder = '史低价格';
+      priceInput.placeholder = '例如: 3.5';
       priceInput.value = game.history_low_price || '';
 
       const saveBtn = document.createElement('button');
@@ -741,12 +757,15 @@ async function loadGamesHistoryLow() {
       saveBtn.textContent = '保存';
       saveBtn.onclick = function() { saveGameHistoryLow(game.id, this); };
 
-      priceDiv.appendChild(priceInput);
-      priceDiv.appendChild(saveBtn);
+      priceInputWrapper.appendChild(priceInput);
+      priceInputWrapper.appendChild(saveBtn);
+      priceDiv.appendChild(priceLabel);
+      priceDiv.appendChild(priceInputWrapper);
 
+      // 右侧：推送设置
       const pushDiv = document.createElement('div');
-      pushDiv.style.marginLeft = '20px';
 
+      // 推送开关
       const pushLabel = document.createElement('label');
       const pushCheckbox = document.createElement('input');
       pushCheckbox.type = 'checkbox';
@@ -755,33 +774,76 @@ async function loadGamesHistoryLow() {
       pushLabel.appendChild(pushCheckbox);
       pushLabel.appendChild(document.createTextNode(' 启用推送提醒'));
 
-      const percentDiv = document.createElement('div');
-      percentDiv.style.marginTop = '6px';
+      // 推送阈值设置
+      const thresholdLabel = document.createElement('div');
+      thresholdLabel.textContent = '价格变动阈值（优先于全局设置）';
+      thresholdLabel.style.fontSize = '13px';
+      thresholdLabel.style.color = 'var(--text-secondary)';
+      thresholdLabel.style.marginTop = '8px';
+      thresholdLabel.style.marginBottom = '4px';
+
+      const percentWrapper = document.createElement('div');
+      percentWrapper.style.display = 'flex';
+      percentWrapper.style.gap = '12px';
+      percentWrapper.style.alignItems = 'center';
+      percentWrapper.style.flexWrap = 'wrap';
+
+      const dropWrapper = document.createElement('div');
+      dropWrapper.style.display = 'flex';
+      dropWrapper.style.alignItems = 'center';
+      dropWrapper.style.gap = '6px';
+
+      const dropLabel = document.createElement('span');
+      dropLabel.textContent = '跌幅';
+      dropLabel.style.fontSize = '14px';
 
       const dropInput = document.createElement('input');
       dropInput.type = 'number';
       dropInput.className = 'game-drop-percent';
       dropInput.min = '0';
       dropInput.max = '100';
-      dropInput.placeholder = '跌幅% (优先于全局)';
+      dropInput.placeholder = '例如: 10';
       dropInput.value = game.push_drop_percent || '';
-      dropInput.style.width = '100px';
+
+      const dropUnit = document.createElement('span');
+      dropUnit.textContent = '%';
+      dropUnit.style.fontSize = '14px';
+
+      dropWrapper.appendChild(dropLabel);
+      dropWrapper.appendChild(dropInput);
+      dropWrapper.appendChild(dropUnit);
+
+      const riseWrapper = document.createElement('div');
+      riseWrapper.style.display = 'flex';
+      riseWrapper.style.alignItems = 'center';
+      riseWrapper.style.gap = '6px';
+
+      const riseLabel = document.createElement('span');
+      riseLabel.textContent = '涨幅';
+      riseLabel.style.fontSize = '14px';
 
       const riseInput = document.createElement('input');
       riseInput.type = 'number';
       riseInput.className = 'game-rise-percent';
       riseInput.min = '0';
       riseInput.max = '100';
-      riseInput.placeholder = '涨幅% (优先于全局)';
+      riseInput.placeholder = '例如: 5';
       riseInput.value = game.push_rise_percent || '';
-      riseInput.style.width = '100px';
-      riseInput.style.marginLeft = '6px';
 
-      percentDiv.appendChild(dropInput);
-      percentDiv.appendChild(riseInput);
+      const riseUnit = document.createElement('span');
+      riseUnit.textContent = '%';
+      riseUnit.style.fontSize = '14px';
+
+      riseWrapper.appendChild(riseLabel);
+      riseWrapper.appendChild(riseInput);
+      riseWrapper.appendChild(riseUnit);
+
+      percentWrapper.appendChild(dropWrapper);
+      percentWrapper.appendChild(riseWrapper);
 
       pushDiv.appendChild(pushLabel);
-      pushDiv.appendChild(percentDiv);
+      pushDiv.appendChild(thresholdLabel);
+      pushDiv.appendChild(percentWrapper);
 
       settingsRow.appendChild(priceDiv);
       settingsRow.appendChild(pushDiv);

@@ -931,23 +931,53 @@ body {
 
 /* 游戏史低价格列表 */
 .game-history-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
+  padding: 16px;
   background: var(--bg);
   border-radius: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
 }
 
 .game-history-item .game-name {
-  flex: 1;
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  margin-bottom: 8px;
+  display: block;
 }
 
-.game-history-item input {
-  width: 100px;
-  padding: 6px 10px;
+.game-history-item .current-price {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  display: block;
+}
+
+.game-settings-row {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.game-settings-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.game-settings-row > div:first-child {
+  flex: 0 0 auto;
+}
+
+.game-settings-row > div:last-child {
+  flex: 1;
+  min-width: 300px;
+}
+
+.game-history-item input[type="number"] {
+  width: 120px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg-card);
@@ -955,14 +985,27 @@ body {
   font-size: 14px;
 }
 
-.game-history-item .btn-save {
-  padding: 6px 12px;
-  font-size: 12px;
+.game-history-item input[type="checkbox"] {
+  margin-right: 6px;
 }
 
-.game-history-item .current-price {
-  font-size: 12px;
-  color: var(--text-secondary);
+.game-history-item .btn-save {
+  padding: 8px 16px;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.game-history-item label {
+  font-size: 14px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.game-history-item .game-drop-percent,
+.game-history-item .game-rise-percent {
+  width: 140px !important;
 }
 
 /* ========== 子选项 ========== */
