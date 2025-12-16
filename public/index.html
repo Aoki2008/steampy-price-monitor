@@ -9,193 +9,228 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
   </head>
   <body>
-    <div class="container">
-      <!-- 头部 -->
-      <header class="header">
-        <h1>🎮 Steam Key 价格监控</h1>
-        <div class="header-actions">
-          <button
-            id="btn-refresh"
-            class="btn btn-primary"
-            onclick="refreshData()"
-          >
-            🔄 刷新
-          </button>
-          <button
-            id="btn-collect"
-            class="btn btn-success"
-            onclick="manualCollect()"
-          >
-            📥 采集
-          </button>
-          <button class="btn" onclick="showSettingsModal()">⚙️ 设置</button>
-        </div>
-      </header>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+      <div class="navbar-brand">
+        <span class="navbar-logo">Steam</span>
+        <span class="navbar-title">Steam Key 价格监控</span>
+      </div>
+      <!-- 移动端游戏选择器 -->
+      <select
+        id="mobile-game-select"
+        class="mobile-game-select"
+        onchange="selectGameMobile(this.value)"
+      >
+        <option value="">选择游戏...</option>
+      </select>
+      <div class="navbar-actions">
+        <button id="btn-refresh" class="btn" onclick="refreshData()">
+          刷新
+        </button>
+        <button
+          id="btn-collect"
+          class="btn btn-success"
+          onclick="manualCollect()"
+        >
+          采集
+        </button>
+        <button id="btn-theme" class="btn" onclick="toggleTheme()">主题</button>
+        <button class="btn btn-primary" onclick="showSettingsModal()">
+          设置
+        </button>
+      </div>
+    </nav>
 
-      <!-- 游戏选择器 -->
-      <div class="card game-selector">
-        <div class="card-header">
-          <h3>📋 监控游戏</h3>
+    <!-- 主体内容 -->
+    <div class="main-wrapper">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h3>监控游戏</h3>
           <button class="btn btn-sm" onclick="showAddGameModal()">
-            + 添加游戏
+            + 添加
           </button>
         </div>
         <div class="game-list" id="game-list">
           <!-- 动态生成 -->
         </div>
-      </div>
+      </aside>
 
-      <!-- 时间维度选择 -->
-      <div class="card">
-        <div class="period-selector">
-          <span>时间范围：</span>
-          <button class="period-btn active" data-period="day">
-            最近24小时
-          </button>
-          <button class="period-btn" data-period="week">最近7天</button>
-          <button class="period-btn" data-period="month">最近30天</button>
-          <button class="period-btn" data-period="all">全部数据</button>
-        </div>
-      </div>
-
-      <!-- 统计卡片 -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon">💰</div>
-          <div class="stat-content">
-            <div class="stat-value" id="stat-current">--</div>
-            <div class="stat-label">当前最低价</div>
+      <!-- 主内容区 -->
+      <main class="content">
+        <!-- 页面标题 -->
+        <div class="page-header">
+          <div>
+            <h1 class="page-title" id="current-game-title">价格监控</h1>
+            <p class="page-subtitle">
+              最后更新：<span id="last-update">--</span>
+            </p>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">📉</div>
-          <div class="stat-content">
-            <div class="stat-value" id="stat-lowest">--</div>
-            <div class="stat-label">历史最低价</div>
+
+        <!-- 时间维度选择 -->
+        <div class="card">
+          <div class="period-selector">
+            <span>时间范围：</span>
+            <button class="period-btn active" data-period="day">
+              最近24小时
+            </button>
+            <button class="period-btn" data-period="week">最近7天</button>
+            <button class="period-btn" data-period="month">最近30天</button>
+            <button class="period-btn" data-period="all">全部数据</button>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">📊</div>
-          <div class="stat-content">
-            <div class="stat-value" id="stat-avg">--</div>
-            <div class="stat-label">平均最低价</div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">价</div>
+            <div class="stat-content">
+              <div class="stat-value" id="stat-current">--</div>
+              <div class="stat-label">当前最低价</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">低</div>
+            <div class="stat-content">
+              <div class="stat-value" id="stat-lowest">--</div>
+              <div class="stat-label">历史最低价</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">均</div>
+            <div class="stat-content">
+              <div class="stat-value" id="stat-avg">--</div>
+              <div class="stat-label">平均最低价</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">高</div>
+            <div class="stat-content">
+              <div class="stat-value" id="stat-highest">--</div>
+              <div class="stat-label">最高最低价</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">卖</div>
+            <div class="stat-content">
+              <div class="stat-value" id="stat-sellers">--</div>
+              <div class="stat-label">当前卖家数</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">库</div>
+            <div class="stat-content">
+              <div class="stat-value" id="stat-stock">--</div>
+              <div class="stat-label">当前库存</div>
+            </div>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">📈</div>
-          <div class="stat-content">
-            <div class="stat-value" id="stat-highest">--</div>
-            <div class="stat-label">最高最低价</div>
+
+        <!-- 价格走势图 -->
+        <div class="card chart-card">
+          <div class="card-header">
+            <h3>价格走势</h3>
+            <div class="chart-legend">
+              <span class="legend-item"
+                ><span class="dot min"></span>最低价</span
+              >
+              <span class="legend-item"
+                ><span class="dot avg"></span>平均价</span
+              >
+              <span class="legend-item"
+                ><span class="dot max"></span>最高价</span
+              >
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="price-chart"></canvas>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">🏪</div>
-          <div class="stat-content">
-            <div class="stat-value" id="stat-sellers">--</div>
-            <div class="stat-label">当前卖家数</div>
+
+        <!-- 卖家/库存趋势图 -->
+        <div class="card chart-card">
+          <div class="card-header">
+            <h3>市场供应趋势</h3>
+          </div>
+          <div class="chart-container">
+            <canvas id="supply-chart"></canvas>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">📦</div>
-          <div class="stat-content">
-            <div class="stat-value" id="stat-stock">--</div>
-            <div class="stat-label">当前库存</div>
+
+        <!-- 价格分布分析 -->
+        <div class="card">
+          <div class="card-header">
+            <h3>价格分析</h3>
+          </div>
+          <div class="analysis-content" id="analysis-content">
+            <p class="loading">加载中...</p>
           </div>
         </div>
-      </div>
 
-      <!-- 价格走势图 -->
-      <div class="card chart-card">
-        <div class="card-header">
-          <h3>📈 价格走势</h3>
-          <div class="chart-legend">
-            <span class="legend-item"><span class="dot min"></span>最低价</span>
-            <span class="legend-item"><span class="dot avg"></span>平均价</span>
-            <span class="legend-item"><span class="dot max"></span>最高价</span>
+        <!-- 多维度分析 -->
+        <div class="card">
+          <div class="card-header">
+            <h3>多维度数据分析</h3>
+            <div class="analysis-tabs">
+              <button class="tab-btn active" data-tab="daily">按天</button>
+              <button class="tab-btn" data-tab="weekly">按周</button>
+              <button class="tab-btn" data-tab="monthly">按月</button>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="analysis-chart"></canvas>
+          </div>
+          <div class="analysis-summary" id="analysis-summary">
+            <!-- 动态生成统计摘要 -->
           </div>
         </div>
-        <div class="chart-container">
-          <canvas id="price-chart"></canvas>
-        </div>
-      </div>
 
-      <!-- 卖家/库存趋势图 -->
-      <div class="card chart-card">
-        <div class="card-header">
-          <h3>🏪 市场供应趋势</h3>
-        </div>
-        <div class="chart-container">
-          <canvas id="supply-chart"></canvas>
-        </div>
-      </div>
-
-      <!-- 价格分布分析 -->
-      <div class="card">
-        <div class="card-header">
-          <h3>📊 价格分析</h3>
-        </div>
-        <div class="analysis-content" id="analysis-content">
-          <p class="loading">加载中...</p>
-        </div>
-      </div>
-
-      <!-- 多维度分析 -->
-      <div class="card">
-        <div class="card-header">
-          <h3>📈 多维度数据分析</h3>
-          <div class="analysis-tabs">
-            <button class="tab-btn active" data-tab="daily">按天</button>
-            <button class="tab-btn" data-tab="weekly">按周</button>
-            <button class="tab-btn" data-tab="monthly">按月</button>
+        <!-- 价格分布图 -->
+        <div class="card">
+          <div class="card-header">
+            <h3>价格区间分布</h3>
+          </div>
+          <div class="chart-container" style="height: 250px">
+            <canvas id="distribution-chart"></canvas>
           </div>
         </div>
-        <div class="chart-container">
-          <canvas id="analysis-chart"></canvas>
-        </div>
-        <div class="analysis-summary" id="analysis-summary">
-          <!-- 动态生成统计摘要 -->
-        </div>
-      </div>
 
-      <!-- 价格分布图 -->
-      <div class="card">
-        <div class="card-header">
-          <h3>📊 价格区间分布</h3>
+        <!-- 数据记录表 -->
+        <div class="card">
+          <div class="card-header">
+            <h3>采集记录</h3>
+            <span class="record-count" id="record-count">0 条记录</span>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>采集时间</th>
+                  <th>最低价</th>
+                  <th>平均价</th>
+                  <th>最高价</th>
+                  <th>卖家数</th>
+                  <th>库存</th>
+                </tr>
+              </thead>
+              <tbody id="data-table-body">
+                <!-- 动态生成 -->
+              </tbody>
+            </table>
+            <div class="pagination" id="pagination">
+              <button class="btn btn-sm" onclick="prevPage()">上一页</button>
+              <span class="page-info" id="page-info">第 1 页</span>
+              <button class="btn btn-sm" onclick="nextPage()">下一页</button>
+            </div>
+          </div>
         </div>
-        <div class="chart-container" style="height: 250px">
-          <canvas id="distribution-chart"></canvas>
-        </div>
-      </div>
 
-      <!-- 数据记录表 -->
-      <div class="card">
-        <div class="card-header">
-          <h3>📝 采集记录</h3>
-          <span class="record-count" id="record-count">0 条记录</span>
-        </div>
-        <div class="table-wrapper">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>采集时间</th>
-                <th>最低价</th>
-                <th>平均价</th>
-                <th>最高价</th>
-                <th>卖家数</th>
-                <th>库存</th>
-              </tr>
-            </thead>
-            <tbody id="data-table-body">
-              <!-- 动态生成 -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 页脚 -->
-      <footer class="footer">
-        <p>采集间隔：每10分钟 | 最后更新：<span id="last-update">--</span></p>
-      </footer>
+        <!-- 页脚 -->
+        <footer class="footer">
+          <p>采集间隔：每10分钟</p>
+        </footer>
+      </main>
     </div>
 
     <!-- 添加游戏弹窗 -->
@@ -224,7 +259,7 @@
     <!-- 设置弹窗 -->
     <div class="modal" id="settings-modal">
       <div class="modal-content modal-lg">
-        <h3>⚙️ 系统设置</h3>
+        <h3>系统设置</h3>
 
         <!-- 标签导航 -->
         <div class="settings-tabs">
@@ -233,28 +268,28 @@
             data-tab="basic"
             onclick="switchSettingsTab('basic')"
           >
-            📋 基础设置
+            基础设置
           </button>
           <button
             class="settings-tab"
             data-tab="pushme"
             onclick="switchSettingsTab('pushme')"
           >
-            📱 推送设置
+            推送设置
           </button>
           <button
             class="settings-tab"
             data-tab="games"
             onclick="switchSettingsTab('games')"
           >
-            🎮 游戏管理
+            游戏管理
           </button>
           <button
             class="settings-tab"
             data-tab="database"
             onclick="switchSettingsTab('database')"
           >
-            💾 数据库
+            数据库
           </button>
         </div>
 
@@ -302,7 +337,7 @@
         <!-- 推送设置 -->
         <div class="settings-panel" id="panel-pushme">
           <div class="settings-section">
-            <h4>📱 PushMe 基础配置</h4>
+            <h4>PushMe 基础配置</h4>
             <div class="form-group">
               <label>
                 <input type="checkbox" id="pushme-enabled" />
@@ -327,7 +362,7 @@
           </div>
 
           <div class="settings-section">
-            <h4>🔔 价格提醒规则</h4>
+            <h4>价格提醒规则</h4>
             <div class="form-group">
               <label>推送冷却时间（分钟）</label>
               <input
@@ -380,7 +415,7 @@
           </div>
 
           <div class="settings-section">
-            <h4>📊 其他提醒</h4>
+            <h4>其他提醒</h4>
             <div class="form-group">
               <label>
                 <input type="checkbox" id="pushme-daily-report" />
@@ -398,14 +433,14 @@
             </div>
             <div style="margin-top: 15px">
               <button class="btn btn-sm" onclick="testPushMe()">
-                📤 测试推送
+                测试推送
               </button>
               <button
                 class="btn btn-sm"
                 onclick="sendDailyReport()"
                 style="margin-left: 5px"
               >
-                📊 发送报告
+                发送报告
               </button>
             </div>
           </div>
@@ -414,7 +449,7 @@
         <!-- 游戏管理 -->
         <div class="settings-panel" id="panel-games">
           <div class="settings-section">
-            <h4>🎮 游戏史低价格设置</h4>
+            <h4>游戏史低价格设置</h4>
             <small
               style="
                 color: var(--text-secondary);
@@ -458,7 +493,7 @@
               onclick="cleanupData()"
               style="margin-top: 10px"
             >
-              🗑️ 清理过期数据
+              清理过期数据
             </button>
           </div>
         </div>

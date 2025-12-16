@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UI 重构预览 - 浅色主题</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f5f7fa;
+      color: #1f2937;
+      line-height: 1.5;
+    }
+
+    /* 顶部导航 */
+    .navbar {
+      background: #ffffff;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .navbar-brand img {
+      width: 32px;
+      height: 32px;
+    }
+
+    .navbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* 按钮 */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #374151;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn:hover {
+      background: #f9fafb;
+      border-color: #9ca3af;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background: #1d4ed8;
+      border-color: #1d4ed8;
+    }
+
+    .btn-success {
+      background: #059669;
+      border-color: #059669;
+      color: #ffffff;
+    }
+
+    .btn-success:hover {
+      background: #047857;
+    }
+
+    /* 主内容区 */
+    .main-content {
+      display: flex;
+      min-height: calc(100vh - 64px);
+    }
+
+    /* 侧边栏 */
+    .sidebar {
+      width: 260px;
+      background: #ffffff;
+      border-right: 1px solid #e5e7eb;
+      padding: 20px 0;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: 0 16px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #e5e7eb;
+      margin-bottom: 12px;
+    }
+
+    .sidebar-header h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .sidebar-header .btn {
+      padding: 4px 10px;
+      font-size: 12px;
+    }
+
+    .game-list {
+      padding: 0 12px;
+    }
+
+    .game-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-bottom: 4px;
+    }
+
+    .game-item:hover {
+      background: #f3f4f6;
+    }
+
+    .game-item.active {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    .game-item .icon {
+      width: 32px;
+      height: 32px;
+      background: #e5e7eb;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .game-item.active .icon {
+      background: #dbeafe;
+    }
+
+    .game-item .name {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .game-item .price {
+      font-size: 13px;
+      color: #059669;
+      font-weight: 600;
+    }
+
+    /* 内容区 */
+    .content {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    /* 页面标题 */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .page-subtitle {
+      font-size: 14px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    /* 时间筛选 */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      background: #ffffff;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .filter-btn {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: #6b7280;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-btn:hover {
+      background: #f3f4f6;
+      color: #374151;
+    }
+
+    .filter-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+    }
+
+    /* 统计卡片 */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.2s;
+    }
+
+    .stat-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      transform: translateY(-2px);
+    }
+
+    .stat-card .label {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+
+    .stat-card .value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .stat-card .change {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      margin-top: 8px;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .stat-card .change.up {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+
+    .stat-card .change.down {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    /* 图表卡片 */
+    .chart-card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .chart-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .chart-legend {
+      display: flex;
+      gap: 16px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .legend-dot.blue { background: #2563eb; }
+    .legend-dot.green { background: #059669; }
+    .legend-dot.orange { background: #ea580c; }
+
+    .chart-placeholder {
+      height: 280px;
+      background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9ca3af;
+      font-size: 14px;
+    }
+
+    /* 数据表格 */
+    .table-card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .table-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .badge {
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      background: #f3f4f6;
+      color: #6b7280;
+      border-radius: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 12px 20px;
+      text-align: left;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    th {
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: #f9fafb;
+    }
+
+    td {
+      font-size: 14px;
+      color: #374151;
+    }
+
+    tr:hover td {
+      background: #f9fafb;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .price-cell {
+      font-weight: 600;
+      color: #059669;
+    }
+
+    /* 弹窗 */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .modal {
+      background: #ffffff;
+      border-radius: 16px;
+      width: 480px;
+      max-height: 90vh;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: #f3f4f6;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #6b7280;
+      font-size: 18px;
+    }
+
+    .modal-close:hover {
+      background: #e5e7eb;
+    }
+
+    .modal-body {
+      padding: 24px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 16px 24px;
+      border-top: 1px solid #e5e7eb;
+      background: #f9fafb;
+    }
+
+    /* 表单 */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #1f2937;
+      transition: all 0.15s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .form-hint {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 6px;
+    }
+
+    /* 标签页 */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #e5e7eb;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #6b7280;
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.15s;
+    }
+
+    .tab:hover {
+      color: #374151;
+    }
+
+    .tab.active {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+    }
+
+    /* 开关 */
+    .switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .switch-slider {
+      position: absolute;
+      inset: 0;
+      background: #d1d5db;
+      border-radius: 24px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .switch-slider:before {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+
+    .switch input:checked + .switch-slider {
+      background: #2563eb;
+    }
+
+    .switch input:checked + .switch-slider:before {
+      transform: translateX(20px);
+    }
+
+    /* 预览提示 */
+    .preview-banner {
+      background: linear-gradient(90deg, #fef3c7 0%, #fde68a 100%);
+      border-bottom: 1px solid #fcd34d;
+      padding: 10px 24px;
+      font-size: 13px;
+      color: #92400e;
+      text-align: center;
+    }
+
+    /* 响应式 */
+    @media (max-width: 1024px) {
+      .stats-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none;
+      }
+      .stats-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 预览提示 -->
+  <div class="preview-banner">
+    ⚠️ 这是 UI 重构预览页面（浅色主题），仅供参考视觉效果，无任何实际功能
+  </div>
+
+  <!-- 顶部导航 -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span style="font-size: 24px;">🎮</span>
+      <span>Steam Key 价格监控</span>
+    </div>
+    <div class="navbar-actions">
+      <button class="btn">🔄 刷新数据</button>
+      <button class="btn btn-success">📥 立即采集</button>
+      <button class="btn btn-primary">⚙️ 设置</button>
+    </div>
+  </nav>
+
+  <div class="main-content">
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h3>监控游戏</h3>
+        <button class="btn">+ 添加</button>
+      </div>
+      <div class="game-list">
+        <div class="game-item active">
+          <div class="icon">🎮</div>
+          <div class="name">黑神话：悟空</div>
+          <div class="price">¥198</div>
+        </div>
+        <div class="game-item">
+          <div class="icon">⚔️</div>
+          <div class="name">艾尔登法环</div>
+          <div class="price">¥156</div>
+        </div>
+        <div class="game-item">
+          <div class="icon">🌃</div>
+          <div class="name">赛博朋克2077</div>
+          <div class="price">¥89</div>
+        </div>
+        <div class="game-item">
+          <div class="icon">🏎️</div>
+          <div class="name">极限竞速：地平线5</div>
+          <div class="price">¥125</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 主内容 -->
+    <main class="content">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">黑神话：悟空</h1>
+          <p class="page-subtitle">最后更新：2024-12-14 17:30:00</p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn">📊 导出数据</button>
+          <button class="btn btn-primary">📤 测试推送</button>
+        </div>
+      </div>
+
+      <!-- 时间筛选 -->
+      <div class="filter-bar">
+        <button class="filter-btn active">最近24小时</button>
+        <button class="filter-btn">最近7天</button>
+        <button class="filter-btn">最近30天</button>
+        <button class="filter-btn">全部数据</button>
+      </div>
+
+      <!-- 统计卡片 -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="label">当前最低价</div>
+          <div class="value">¥198.50</div>
+          <div class="change down">↓ 2.3% 较昨日</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">历史最低价</div>
+          <div class="value">¥185.00</div>
+          <div class="change up">史低价格</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">当前卖家数</div>
+          <div class="value">156</div>
+          <div class="change up">↑ 12 较昨日</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">当前库存</div>
+          <div class="value">2,847</div>
+          <div class="change down">↓ 89 较昨日</div>
+        </div>
+      </div>
+
+      <!-- 价格走势图 -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3 class="chart-title">📈 价格走势</h3>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-dot blue"></span>最低价</span>
+            <span class="legend-item"><span class="legend-dot green"></span>平均价</span>
+            <span class="legend-item"><span class="legend-dot orange"></span>最高价</span>
+          </div>
+        </div>
+        <div class="chart-placeholder">
+          [Chart.js 图表区域]
+        </div>
+      </div>
+
+      <!-- 数据表格 -->
+      <div class="table-card">
+        <div class="table-header">
+          <h3 class="table-title">📝 采集记录</h3>
+          <span class="badge">共 1,234 条</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>采集时间</th>
+              <th>最低价</th>
+              <th>平均价</th>
+              <th>最高价</th>
+              <th>卖家数</th>
+              <th>库存</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>2024-12-14 17:30</td>
+              <td class="price-cell">¥198.50</td>
+              <td>¥215.80</td>
+              <td>¥268.00</td>
+              <td>156</td>
+              <td>2,847</td>
+            </tr>
+            <tr>
+              <td>2024-12-14 17:20</td>
+              <td class="price-cell">¥199.00</td>
+              <td>¥216.20</td>
+              <td>¥268.00</td>
+              <td>155</td>
+              <td>2,832</td>
+            </tr>
+            <tr>
+              <td>2024-12-14 17:10</td>
+              <td class="price-cell">¥198.80</td>
+              <td>¥215.50</td>
+              <td>¥265.00</td>
+              <td>158</td>
+              <td>2,856</td>
+            </tr>
+            <tr>
+              <td>2024-12-14 17:00</td>
+              <td class="price-cell">¥200.00</td>
+              <td>¥218.00</td>
+              <td>¥270.00</td>
+              <td>152</td>
+              <td>2,801</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 设置弹窗示例 -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3 class="chart-title">🪟 设置弹窗示例</h3>
+        </div>
+        <div class="modal-backdrop" style="position: relative; height: 500px; border-radius: 8px;">
+          <div class="modal">
+            <div class="modal-header">
+              <h3 class="modal-title">⚙️ 系统设置</h3>
+              <button class="modal-close">×</button>
+            </div>
+            <div class="tabs">
+              <button class="tab active">基础设置</button>
+              <button class="tab">推送设置</button>
+              <button class="tab">游戏管理</button>
+              <button class="tab">数据库</button>
+            </div>
+            <div class="modal-body">
+              <div class="form-group">
+                <label class="form-label">采集间隔（分钟）</label>
+                <input type="number" class="form-input" value="10" />
+                <div class="form-hint">范围：1-1440分钟</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">数据保留天数</label>
+                <input type="number" class="form-input" value="365" />
+                <div class="form-hint">范围：1-365天</div>
+              </div>
+              <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <label class="form-label" style="margin-bottom: 0;">启用推送通知</label>
+                  <div class="form-hint" style="margin-top: 2px;">价格变动时发送通知</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" checked>
+                  <span class="switch-slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn">取消</button>
+              <button class="btn btn-primary">保存设置</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

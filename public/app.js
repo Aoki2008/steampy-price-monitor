@@ -4,17 +4,46 @@ let currentPeriod = "day";
 let priceChart = null;
 let supplyChart = null;
 
+// 分页状态
+let currentPage = 1;
+const pageSize = 20;
+let allPrices = [];
+
 // API 基础地址
 const API_BASE = "";
 
 // ========== 初始化 ==========
 document.addEventListener("DOMContentLoaded", () => {
+  initTheme();
   initPeriodButtons();
   loadGames();
 
   // 每分钟自动刷新
   setInterval(refreshData, 60000);
 });
+
+// ========== 主题切换 ==========
+function initTheme() {
+  const savedTheme = localStorage.getItem("theme") || "light";
+  document.documentElement.dataset.theme = savedTheme;
+  updateThemeButton(savedTheme);
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.dataset.theme === "dark";
+  const newTheme = isDark ? "light" : "dark";
+  html.dataset.theme = newTheme;
+  localStorage.setItem("theme", newTheme);
+  updateThemeButton(newTheme);
+}
+
+function updateThemeButton(theme) {
+  const btn = document.getElementById("btn-theme");
+  if (btn) {
+    btn.textContent = theme === "dark" ? "亮色" : "暗色";
+  }
+}
 
 // ========== 游戏管理 ==========
 async function loadGames() {
@@ -49,6 +78,18 @@ async function loadGames() {
       gameList.appendChild(div);
     });
 
+    // 更新移动端游戏选择器
+    const mobileSelect = document.getElementById("mobile-game-select");
+    if (mobileSelect) {
+      mobileSelect.innerHTML = '<option value="">选择游戏...</option>';
+      games.forEach((game) => {
+        const option = document.createElement("option");
+        option.value = game.id;
+        option.textContent = game.name || game.id;
+        mobileSelect.appendChild(option);
+      });
+    }
+
     // 选择第一个游戏
     if (games.length > 0 && !currentGameId) {
       selectGame(games[0].id);
@@ -66,8 +107,26 @@ function selectGame(gameId) {
     item.classList.toggle("active", item.dataset.id === gameId);
   });
 
+  // 更新移动端选择器
+  const mobileSelect = document.getElementById("mobile-game-select");
+  if (mobileSelect) mobileSelect.value = gameId;
+
+  // 更新页面标题
+  const activeItem = document.querySelector(`.game-item[data-id="${gameId}"]`);
+  const gameName =
+    activeItem?.querySelector(".game-name")?.textContent || "价格监控";
+  const titleEl = document.getElementById("current-game-title");
+  if (titleEl) {
+    titleEl.textContent = gameName;
+  }
+
   // 加载数据
   loadPriceData();
+}
+
+function selectGameMobile(gameId) {
+  if (!gameId) return;
+  selectGame(gameId);
 }
 
 async function addGame() {
@@ -408,16 +467,26 @@ function updateSupplyChart(prices) {
 
 // ========== 更新表格 ==========
 function updateTable(prices) {
+  allPrices = [...prices].reverse(); // 保存所有数据（倒序）
+  currentPage = 1;
+  renderTablePage();
+}
+
+function renderTablePage() {
   const tbody = document.getElementById("data-table-body");
+  const totalPages = Math.ceil(allPrices.length / pageSize) || 1;
+  const start = (currentPage - 1) * pageSize;
+  const end = start + pageSize;
+  const pageData = allPrices.slice(start, end);
+
   document.getElementById(
     "record-count"
-  ).textContent = `${prices.length} 条记录`;
+  ).textContent = `${allPrices.length} 条记录`;
+  document.getElementById(
+    "page-info"
+  ).textContent = `第 ${currentPage}/${totalPages} 页`;
 
-  // 倒序显示（最新的在前）
-  const reversedPrices = [...prices].reverse();
-
-  tbody.innerHTML = reversedPrices
-    .slice(0, 100)
+  tbody.innerHTML = pageData
     .map(
       (p) => `
     <tr>
@@ -433,6 +502,21 @@ function updateTable(prices) {
   `
     )
     .join("");
+}
+
+function prevPage() {
+  if (currentPage > 1) {
+    currentPage--;
+    renderTablePage();
+  }
+}
+
+function nextPage() {
+  const totalPages = Math.ceil(allPrices.length / pageSize);
+  if (currentPage < totalPages) {
+    currentPage++;
+    renderTablePage();
+  }
 }
 
 // ========== 价格分析 ==========
@@ -543,7 +627,7 @@ async function manualCollect() {
     alert("采集失败: " + error.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = "📥 立即采集";
+    btn.textContent = "采集";
   }
 }
 
