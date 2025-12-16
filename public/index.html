@@ -325,6 +325,13 @@
           >
             数据库
           </button>
+          <button
+            class="settings-tab"
+            data-tab="about"
+            onclick="switchSettingsTab('about')"
+          >
+            关于
+          </button>
         </div>
 
         <!-- 基础设置 -->
@@ -504,6 +511,55 @@
             >
               清理过期数据
             </button>
+          </div>
+        </div>
+
+        <!-- 关于 -->
+        <div class="settings-panel" id="panel-about">
+          <div class="settings-section">
+            <div class="about-header">
+              <h2 style="margin: 0 0 10px 0">Steam Key 价格监控系统</h2>
+              <p style="color: var(--text-secondary); margin: 0 0 20px 0">版本 2.1.0</p>
+            </div>
+
+            <div class="about-content">
+              <h4>项目简介</h4>
+              <p style="color: var(--text-secondary); line-height: 1.6">
+                实时监控 Steam Key 价格走势，支持多游戏监控、SQLite 数据存储、多维度数据分析和价格趋势图表展示。
+              </p>
+
+              <h4 style="margin-top: 25px">主要功能</h4>
+              <ul style="color: var(--text-secondary); line-height: 1.8; margin: 10px 0; padding-left: 20px">
+                <li>实时价格监控与数据采集</li>
+                <li>SQLite 数据库存储，支持最长一年数据保留</li>
+                <li>多维度数据分析（按天/周/月）</li>
+                <li>价格走势图表展示</li>
+                <li>企业微信机器人推送提醒</li>
+                <li>深色模式与响应式设计</li>
+                <li>批量导入游戏功能</li>
+              </ul>
+
+              <h4 style="margin-top: 25px">技术栈</h4>
+              <p style="color: var(--text-secondary); line-height: 1.6">
+                后端：Node.js + Express + SQLite<br>
+                前端：HTML/CSS/JavaScript + Chart.js<br>
+                推送：企业微信机器人 Webhook
+              </p>
+
+              <h4 style="margin-top: 25px">项目地址</h4>
+              <p style="margin: 10px 0">
+                <a href="https://github.com/Aoki2008/steampy-price-monitor" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: none">
+                  https://github.com/Aoki2008/steampy-price-monitor
+                </a>
+              </p>
+
+              <h4 style="margin-top: 25px">开源协议</h4>
+              <p style="color: var(--text-secondary)">MIT License</p>
+
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color); color: var(--text-secondary); font-size: 14px">
+                <p style="margin: 0">如有问题或建议，欢迎在 GitHub 提交 Issue</p>
+              </div>
+            </div>
           </div>
         </div>
 
