@@ -1,6 +1,7 @@
 const express = require("express");
 const cron = require("node-cron");
 const cors = require("cors");
+const http = require("http");
 const https = require("https");
 const path = require("path");
 const fs = require("fs");
@@ -30,10 +31,10 @@ const DEFAULT_CONFIG = {
   dataRetentionDays: 365,
   apiHost: "steampy.com",
   apiPath: "/xboot/steamKeySale/listSale",
-  // PushMe 推送配置
+  // 企业微信机器人推送配置
   pushme: {
     enabled: false,
-    pushKeys: [], // 支持多个 Push Key，同时向多个设备推送
+    pushKeys: [], // 支持多个企业微信机器人 Webhook Key，同时向多个机器人推送
     // 推送冷却时间（分钟），同一游戏触发提醒后，在此时间内不再重复推送
     cooldownMinutes: 60,
     // 史低提醒（价格达到/低于游戏设定的史低价格时推送）
@@ -139,62 +140,127 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
-// ========== PushMe 推送服务 ==========
+// ========== 企业微信机器人推送服务 ==========
 
 async function sendPushMe(title, content, pushKeysOverride) {
   // 使用覆盖的 pushKeys（用于测试无需先保存设置）或全局配置
-  let pushKeys = Array.isArray(pushKeysOverride)
-    ? pushKeysOverride.filter((k) => k && !k.includes("*"))
-    : config.pushme?.pushKeys || [];
-  // 兼容旧配置：如果有单个 pushKey，也加入列表（如果未被屏蔽）
-  if (config.pushme?.pushKey && !config.pushme.pushKey.includes("*") && !pushKeys.includes(config.pushme.pushKey)) {
-    pushKeys.push(config.pushme.pushKey);
+  let pushKeys;
+
+  if (Array.isArray(pushKeysOverride)) {
+    // 如果提供了覆盖的pushKeys，只使用这些keys，不再从配置中读取
+    pushKeys = pushKeysOverride.filter((k) => k && k.trim() && !k.includes("*"));
+  } else {
+    // 否则使用全局配置中的keys
+    pushKeys = (config.pushme?.pushKeys || []).filter((k) => k && k.trim() && !k.includes("*"));
+
+    // 兼容旧配置：只有在 pushKeys 数组为空或不存在时，才使用旧的 pushKey 字段
+    if (pushKeys.length === 0 && config.pushme?.pushKey && !config.pushme.pushKey.includes("*")) {
+      pushKeys.push(config.pushme.pushKey);
+    }
   }
 
-  console.log(`[PushMe] PushMe 启用状态: ${config.pushme?.enabled}`);
-  console.log(`[PushMe] 有效 Push Keys 数量: ${pushKeys.length}`);
+  console.log(`[企业微信] 启用状态: ${config.pushme?.enabled}`);
+  console.log(`[企业微信] 有效 Webhook 数量: ${pushKeys.length}`);
 
   if (!config.pushme?.enabled) {
-    console.log('[PushMe] 失败: PushMe 功能未启用');
-    return { success: false, reason: "PushMe功能未启用。请在设置中启用PushMe并保存配置。" };
+    console.log('[企业微信] 失败: 推送功能未启用');
+    return { success: false, reason: "企业微信推送功能未启用。请在设置中启用并保存配置。" };
   }
 
   if (pushKeys.length === 0) {
-    console.log('[PushMe] 失败: 没有有效的 Push Key');
-    return { success: false, reason: "未配置有效的Push Key。请在设置中添加至少一个Push Key并保存配置。" };
+    console.log('[企业微信] 失败: 没有有效的 Webhook URL');
+    return { success: false, reason: "未配置有效的 Webhook URL。请在设置中添加至少一个企业微信机器人 Webhook 地址并保存配置。" };
   }
 
-  console.log(`[PushMe] 发送推送: ${title} (共 ${pushKeys.length} 个接收者)`);
+  console.log(`[企业微信] 发送推送: ${title} (共 ${pushKeys.length} 个接收者)`);
 
   const results = [];
   for (const pushKey of pushKeys) {
-    const params = new URLSearchParams({
-      push_key: pushKey,
-      title: title,
-      content: content,
-    });
+    // 构建 Markdown 格式消息
+    const message = {
+      msgtype: "markdown",
+      markdown: {
+        content: `## ${title}\n\n${content}`
+      }
+    };
 
-    const url = `https://push.i-i.me/?${params.toString()}`;
+    const bodyData = JSON.stringify(message);
 
     try {
-      const response = await fetch(url, { method: "GET", timeout: 15000 });
-      const data = await response.text();
-      const success = response.ok || data.includes("success");
+      // 判断是完整的 Webhook URL 还是只有 key
+      let webhookUrl;
+      if (pushKey.startsWith('http://') || pushKey.startsWith('https://')) {
+        // 完整的 Webhook URL
+        webhookUrl = pushKey;
+      } else {
+        // 只有 key，构建完整 URL
+        webhookUrl = `https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=${pushKey}`;
+      }
+
+      console.log(`[企业微信] 正在发送推送消息...`);
+      console.log(`[企业微信] 请求体大小: ${bodyData.length} 字符`);
+
+      const result = await new Promise((resolve, reject) => {
+        // 解析 URL
+        const urlObj = new URL(webhookUrl);
+
+        const options = {
+          hostname: urlObj.hostname,
+          port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+          path: urlObj.pathname + urlObj.search,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(bodyData),
+          },
+        };
+
+        const protocol = urlObj.protocol === 'https:' ? https : http;
+        const req = protocol.request(options, (res) => {
+          let data = '';
+          res.on('data', (chunk) => (data += chunk));
+          res.on('end', () => {
+            console.log(`[企业微信] 响应状态: ${res.statusCode}`);
+            console.log(`[企业微信] 响应内容: ${data}`);
+            try {
+              const jsonData = JSON.parse(data);
+              resolve({ statusCode: res.statusCode, data: jsonData });
+            } catch (e) {
+              resolve({ statusCode: res.statusCode, data: { errcode: -1, errmsg: data } });
+            }
+          });
+        });
+
+        req.on('error', (e) => {
+          console.error(`[企业微信] 请求错误:`, e.message);
+          reject(e);
+        });
+
+        req.setTimeout(15000, () => {
+          req.destroy();
+          reject(new Error('Request timeout'));
+        });
+
+        req.write(bodyData);
+        req.end();
+      });
+
+      // 企业微信机器人成功返回：{"errcode":0,"errmsg":"ok"}
+      const success = result.statusCode === 200 && result.data.errcode === 0;
 
       console.log(
-        `[PushMe] ${pushKey.slice(0, 6)}*** - ${success ? "成功" : "失败"} (${
-          response.status
-        })`
+        `[企业微信] ${success ? "成功" : "失败"} (errcode: ${result.data.errcode}, errmsg: ${result.data.errmsg})`
       );
       results.push({
-        pushKey: pushKey.slice(0, 6) + "***",
         success,
-        statusCode: response.status,
+        statusCode: result.statusCode,
+        errcode: result.data.errcode,
+        errmsg: result.data.errmsg,
       });
     } catch (e) {
-      console.error(`[PushMe] ${pushKey.slice(0, 6)}*** 推送失败:`, e.message);
+      console.error(`[企业微信] 推送失败:`, e.message);
+      console.error(`[企业微信] 错误详情:`, e);
       results.push({
-        pushKey: pushKey.slice(0, 6) + "***",
         success: false,
         error: e.message,
       });
@@ -280,8 +346,8 @@ async function sendDailyReport() {
   }
 
   if (!config.pushme?.enabled) {
-    console.log('[每日报告] 失败: PushMe 功能未启用');
-    return { success: false, reason: "PushMe功能未启用" };
+    console.log('[每日报告] 失败: 企业微信推送功能未启用');
+    return { success: false, reason: "企业微信推送功能未启用" };
   }
 
   const games = db.exec("SELECT id, name FROM games");
@@ -480,11 +546,17 @@ app.put('/api/games/:id/push-settings', (req, res) => {
 });
 
 app.post("/api/games", (req, res) => {
-  const { id, name } = req.body;
+  const { id, name, history_low_price } = req.body;
   if (!id) return res.status(400).json({ error: "游戏ID不能为空" });
-  db.run("INSERT OR REPLACE INTO games (id, name) VALUES (?, ?)", [
+
+  const price = history_low_price === null || history_low_price === undefined || history_low_price === ""
+    ? null
+    : parseFloat(history_low_price);
+
+  db.run("INSERT OR REPLACE INTO games (id, name, history_low_price) VALUES (?, ?, ?)", [
     id,
     name || "未命名",
+    price,
   ]);
   saveDatabase();
   collectAndStorePrices(id);
@@ -681,10 +753,13 @@ app.put("/api/config", (req, res) => {
       config.pushme.enabled = pushme.enabled;
     // 支持新的 pushKeys 数组，同时兼容旧的 pushKey 字段
     if (Array.isArray(pushme.pushKeys)) {
-      // 过滤掉空值或被屏蔽的（包含'*'）条目
-      config.pushme.pushKeys = pushme.pushKeys.filter((k) => k && !k.includes("*"));
-      // 如果明确提交了空数组，清除兼容旧字段 pushKey
-      if (config.pushme.pushKeys.length === 0 && config.pushme.pushKey) {
+      // 过滤掉空值、纯空格或被屏蔽的（包含'*'）条目
+      config.pushme.pushKeys = pushme.pushKeys.filter((k) => k && k.trim() && !k.includes("*"));
+      console.log('[配置更新] 保存后的 pushKeys:', config.pushme.pushKeys);
+
+      // 重要：当使用新的 pushKeys 数组时，清除旧的 pushKey 字段以避免混淆
+      if (config.pushme.pushKey) {
+        console.log('[配置更新] 清除旧的 pushKey 字段');
         delete config.pushme.pushKey;
       }
     } else if (pushme.pushKey?.length > 5) {
@@ -734,14 +809,14 @@ app.put("/api/config", (req, res) => {
   res.json({ success: true });
 });
 
-// PushMe 测试推送
+// 企业微信测试推送
 app.post("/api/pushme/test", async (req, res) => {
   const providedKeys = req.body?.pushKeys;
 
-  console.log('[PushMe Test] 收到测试请求');
-  console.log('[PushMe Test] 提供的 keys 数量:', providedKeys?.length || 0);
-  console.log('[PushMe Test] PushMe 启用状态:', config.pushme?.enabled);
-  console.log('[PushMe Test] 配置中的 keys 数量:', config.pushme?.pushKeys?.length || 0);
+  console.log('[企业微信测试] 收到测试请求');
+  console.log('[企业微信测试] 提供的 keys 数量:', providedKeys?.length || 0);
+  console.log('[企业微信测试] 推送启用状态:', config.pushme?.enabled);
+  console.log('[企业微信测试] 配置中的 keys 数量:', config.pushme?.pushKeys?.length || 0);
 
   const result = await sendPushMe(
     "🔔 测试推送",
@@ -749,7 +824,7 @@ app.post("/api/pushme/test", async (req, res) => {
     providedKeys
   );
 
-  console.log('[PushMe Test] 测试结果:', result);
+  console.log('[企业微信测试] 测试结果:', result);
 
   res.json(result);
 });
@@ -807,7 +882,7 @@ async function start() {
     console.log(
       `\n🎮 Steam Key 价格监控 v2.1\n📍 http://localhost:${PORT}\n⏰ 采集间隔: ${
         config.collectInterval
-      }分钟 | 数据保留: ${config.dataRetentionDays}天\n📱 PushMe: ${
+      }分钟 | 数据保留: ${config.dataRetentionDays}天\n📱 企业微信推送: ${
         config.pushme?.enabled ? "已启用" : "未启用"
       }\n`
     );

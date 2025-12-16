@@ -237,21 +237,55 @@
     <div class="modal" id="add-game-modal">
       <div class="modal-content">
         <h3>添加监控游戏</h3>
-        <div class="form-group">
-          <label>游戏ID</label>
-          <input
-            type="text"
-            id="input-game-id"
-            placeholder="输入游戏ID，如：461759890218553344"
-          />
+
+        <!-- 标签导航 -->
+        <div class="add-game-tabs">
+          <button class="add-game-tab active" data-tab="single" onclick="switchAddGameTab('single')">
+            单个添加
+          </button>
+          <button class="add-game-tab" data-tab="batch" onclick="switchAddGameTab('batch')">
+            批量导入
+          </button>
         </div>
-        <div class="form-group">
-          <label>游戏名称（可选）</label>
-          <input type="text" id="input-game-name" placeholder="输入游戏名称" />
+
+        <!-- 单个添加面板 -->
+        <div class="add-game-panel" id="panel-single">
+          <div class="form-group">
+            <label>游戏ID</label>
+            <input
+              type="text"
+              id="input-game-id"
+              placeholder="输入游戏ID，如：461759890218553344"
+            />
+          </div>
+          <div class="form-group">
+            <label>游戏名称</label>
+            <input type="text" id="input-game-name" placeholder="输入游戏名称" />
+          </div>
+          <div class="form-group">
+            <label>监控价格（可选）</label>
+            <input type="number" id="input-game-price" step="0.01" min="0" placeholder="输入监控价格，如：3.0" />
+          </div>
+          <div class="modal-actions">
+            <button class="btn" onclick="hideAddGameModal()">取消</button>
+            <button class="btn btn-primary" onclick="addGame()">添加</button>
+          </div>
         </div>
-        <div class="modal-actions">
-          <button class="btn" onclick="hideAddGameModal()">取消</button>
-          <button class="btn btn-primary" onclick="addGame()">添加</button>
+
+        <!-- 批量导入面板 -->
+        <div class="add-game-panel" id="panel-batch" style="display: none;">
+          <div class="form-group">
+            <label>批量导入游戏</label>
+            <textarea
+              id="input-batch-games"
+              rows="10"
+              placeholder="每行一个游戏，格式：游戏ID|游戏名称|监控价格&#10;例如：&#10;255807556339896320|只只大冒险|3.0&#10;461759890218553344|示例游戏|5.5&#10;&#10;注意：监控价格可选，不填则不设置"
+            ></textarea>
+          </div>
+          <div class="modal-actions">
+            <button class="btn" onclick="hideAddGameModal()">取消</button>
+            <button class="btn btn-primary" onclick="batchImportGames()">导入</button>
+          </div>
         </div>
       </div>
     </div>
@@ -337,26 +371,28 @@
         <!-- 推送设置 -->
         <div class="settings-panel" id="panel-pushme">
           <div class="settings-section">
-            <h4>PushMe 基础配置</h4>
+            <h4>企业微信机器人配置</h4>
             <div class="form-group">
               <label>
                 <input type="checkbox" id="pushme-enabled" />
-                启用 PushMe 推送
+                启用企业微信推送
               </label>
             </div>
             <div class="form-group">
-              <label>Push Key 管理（支持多个接收者）</label>
+              <label>Webhook URL 管理（支持多个机器人）</label>
               <div id="pushme-keys-list" class="pushme-keys-list"></div>
               <div class="pushme-key-add">
                 <input
                   type="text"
                   id="pushme-key-input"
-                  placeholder="输入 Push Key"
+                  placeholder="输入完整的企业微信机器人 Webhook URL"
                 />
                 <button class="btn btn-sm" onclick="addPushKey()">添加</button>
               </div>
               <small class="hint"
-                >可添加多个 Push Key，消息将同时推送给所有接收者</small
+                >可添加多个机器人 Webhook URL，消息将同时推送给所有机器人。<br/>
+                URL 格式示例：https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxxxxxx<br/>
+                获取方式：企业微信群 → 群设置 → 群机器人 → 添加机器人 → 复制完整 Webhook 地址</small
               >
             </div>
           </div>

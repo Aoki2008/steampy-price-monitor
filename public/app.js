@@ -153,9 +153,15 @@ function selectGameMobile(gameId) {
 async function addGame() {
   const gameId = document.getElementById("input-game-id").value.trim();
   const gameName = document.getElementById("input-game-name").value.trim();
+  const gamePrice = document.getElementById("input-game-price").value.trim();
 
   if (!gameId) {
     alert("请输入游戏ID");
+    return;
+  }
+
+  if (!gameName) {
+    alert("请输入游戏名称");
     return;
   }
 
@@ -163,7 +169,11 @@ async function addGame() {
     const response = await fetch(`${API_BASE}/api/games`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: gameId, name: gameName }),
+      body: JSON.stringify({
+        id: gameId,
+        name: gameName,
+        history_low_price: gamePrice ? parseFloat(gamePrice) : null
+      }),
     });
 
     if (response.ok) {
@@ -198,12 +208,109 @@ async function deleteGame(gameId, event) {
 // ========== 弹窗控制 ==========
 function showAddGameModal() {
   document.getElementById("add-game-modal").classList.add("show");
+  // 重置表单
   document.getElementById("input-game-id").value = "";
   document.getElementById("input-game-name").value = "";
+  document.getElementById("input-game-price").value = "";
+  document.getElementById("input-batch-games").value = "";
+  // 切换到单个添加标签
+  switchAddGameTab('single');
 }
 
 function hideAddGameModal() {
   document.getElementById("add-game-modal").classList.remove("show");
+}
+
+// 切换添加游戏标签页
+function switchAddGameTab(tab) {
+  // 更新标签按钮状态
+  document.querySelectorAll('.add-game-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+
+  // 切换面板显示
+  document.getElementById('panel-single').style.display = tab === 'single' ? 'block' : 'none';
+  document.getElementById('panel-batch').style.display = tab === 'batch' ? 'block' : 'none';
+}
+
+// 批量导入游戏
+async function batchImportGames() {
+  const content = document.getElementById("input-batch-games").value.trim();
+
+  if (!content) {
+    alert("请输入要导入的游戏数据");
+    return;
+  }
+
+  const lines = content.split('\n').filter(line => line.trim());
+  const games = [];
+  const errors = [];
+
+  // 解析每一行
+  lines.forEach((line, index) => {
+    const parts = line.split('|').map(p => p.trim());
+
+    if (parts.length < 2) {
+      errors.push(`第${index + 1}行格式错误：至少需要游戏ID和名称`);
+      return;
+    }
+
+    const [id, name, price] = parts;
+
+    if (!id) {
+      errors.push(`第${index + 1}行：游戏ID不能为空`);
+      return;
+    }
+
+    if (!name) {
+      errors.push(`第${index + 1}行：游戏名称不能为空`);
+      return;
+    }
+
+    games.push({
+      id,
+      name,
+      history_low_price: price ? parseFloat(price) : null
+    });
+  });
+
+  if (errors.length > 0) {
+    alert("导入失败：\n" + errors.join('\n'));
+    return;
+  }
+
+  if (games.length === 0) {
+    alert("没有要导入的游戏");
+    return;
+  }
+
+  // 批量导入
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const game of games) {
+    try {
+      const response = await fetch(`${API_BASE}/api/games`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(game),
+      });
+
+      if (response.ok) {
+        successCount++;
+      } else {
+        failCount++;
+      }
+    } catch (error) {
+      failCount++;
+      console.error(`导入游戏 ${game.name} 失败:`, error);
+    }
+  }
+
+  hideAddGameModal();
+  loadGames();
+
+  alert(`导入完成！\n成功：${successCount}个\n失败：${failCount}个`);
 }
 
 // ========== 时间周期 ==========
@@ -905,8 +1012,8 @@ async function saveSettings() {
   // PushMe 配置
   body.pushme = {
     enabled: document.getElementById("pushme-enabled").checked,
-    // 只提交看起来有效的 pushKeys（过滤掉被屏蔽的或空字符串）
-    pushKeys: (window.pushmeKeys || []).filter((k) => k && !k.includes("*")),
+    // 只提交看起来有效的 pushKeys（过滤掉被屏蔽的、空字符串或纯空格）
+    pushKeys: (window.pushmeKeys || []).filter((k) => k && k.trim() && !k.includes("*")),
     // 推送冷却时间
     cooldownMinutes:
       parseInt(document.getElementById("pushme-cooldown").value) || 60,
@@ -956,11 +1063,14 @@ async function testPushMe() {
       return;
     }
 
-    // 获取当前的 pushKeys
-    const testKeys = (window.pushmeKeys || []).filter((k) => k && !k.includes("*"));
+    // 获取当前的 pushKeys（过滤掉空字符串和无效key）
+    const testKeys = (window.pushmeKeys || []).filter((k) => k && k.trim() && !k.includes("*"));
+
+    console.log('[测试推送] 当前 pushKeys:', window.pushmeKeys);
+    console.log('[测试推送] 过滤后的 testKeys:', testKeys);
 
     if (testKeys.length === 0) {
-      alert("测试失败: 未配置 Push Key。\n\n请在下方添加至少一个 Push Key 并点击\"保存设置\"后再测试。");
+      alert("测试失败: 未配置 Webhook URL。\n\n请在下方添加至少一个 Webhook URL 并点击\"保存设置\"后再测试。");
       return;
     }
 
@@ -973,6 +1083,8 @@ async function testPushMe() {
 
     const result = await res.json();
 
+    console.log('[测试推送] 返回结果:', result);
+
     if (result.success) {
       const msg = `测试推送已发送！\n\n发送成功: ${result.successCount}/${result.total}\n\n请检查手机通知。`;
       alert(msg);
@@ -980,6 +1092,7 @@ async function testPushMe() {
       alert("推送失败: " + (result.reason || result.error || "未知错误"));
     }
   } catch (e) {
+    console.error('[测试推送] 异常:', e);
     alert("推送失败: " + e.message);
   }
 }
@@ -987,8 +1100,11 @@ async function testPushMe() {
 // 手动发送每日报告
 async function sendDailyReport() {
   try {
+    console.log('[每日报告] 发送请求...');
     const res = await fetch(`${API_BASE}/api/pushme/daily-report`, { method: "POST" });
     const result = await res.json();
+
+    console.log('[每日报告] 返回结果:', result);
 
     if (result.success) {
       const msg = result.successCount
@@ -999,6 +1115,7 @@ async function sendDailyReport() {
       alert("发送失败: " + (result.reason || "未知错误"));
     }
   } catch (e) {
+    console.error('[每日报告] 异常:', e);
     alert("发送失败: " + e.message);
   }
 }
@@ -1240,12 +1357,12 @@ function addPushKey() {
   const key = input.value.trim();
 
   if (!key) {
-    alert("请输入 Push Key");
+    alert("请输入 Webhook URL");
     return;
   }
 
   if (window.pushmeKeys.includes(key)) {
-    alert("该 Push Key 已存在");
+    alert("该 Webhook URL 已存在");
     return;
   }
 
@@ -1256,7 +1373,7 @@ function addPushKey() {
 
 // 删除 Push Key
 function removePushKey(index) {
-  if (confirm("确定要删除这个 Push Key 吗？")) {
+  if (confirm("确定要删除这个 Webhook URL 吗？")) {
     window.pushmeKeys.splice(index, 1);
     renderPushKeysList();
   }

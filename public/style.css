@@ -671,7 +671,8 @@ body {
 .form-group input[type="text"],
 .form-group input[type="number"],
 .form-group input[type="password"],
-.form-group input[type="time"] {
+.form-group input[type="time"],
+.form-group textarea {
   width: 100%;
   padding: 10px 14px;
   font-size: 14px;
@@ -680,13 +681,21 @@ body {
   border-radius: var(--radius-md);
   color: var(--text);
   transition: all var(--transition);
+  font-family: inherit;
 }
 
-.form-group input:hover {
+.form-group textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.form-group input:hover,
+.form-group textarea:hover {
   border-color: var(--border-hover);
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group textarea:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-light);
@@ -863,6 +872,43 @@ body {
   color: var(--primary);
   border-bottom-color: var(--primary);
 }
+
+/* ========== 添加游戏标签页 ========== */
+.add-game-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  background: var(--bg);
+  margin-bottom: 16px;
+}
+
+.add-game-tab {
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+
+.add-game-tab:hover {
+  color: var(--text);
+}
+
+.add-game-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.add-game-panel {
+  padding-top: 8px;
+}
+
 
 .settings-panel {
   display: none;
