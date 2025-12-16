@@ -724,129 +724,94 @@ async function loadGamesHistoryLow() {
       const priceSpan = document.createElement('span');
       priceSpan.className = 'current-price';
       priceSpan.textContent = game.history_low_price !== null
-        ? `当前史低: ¥${game.history_low_price}`
-        : '当前史低: 未设置';
+        ? `¥${game.history_low_price}`
+        : '未设置';
 
       // 设置行容器
       const settingsRow = document.createElement('div');
       settingsRow.className = 'game-settings-row';
 
-      // 左侧：史低价格设置
+      // 史低价格设置
       const priceDiv = document.createElement('div');
-
-      const priceLabel = document.createElement('label');
-      priceLabel.textContent = '史低价格';
-      priceLabel.style.fontSize = '13px';
-      priceLabel.style.color = 'var(--text-secondary)';
-      priceLabel.style.marginBottom = '4px';
-
-      const priceInputWrapper = document.createElement('div');
-      priceInputWrapper.style.display = 'flex';
-      priceInputWrapper.style.gap = '8px';
-      priceInputWrapper.style.alignItems = 'center';
 
       const priceInput = document.createElement('input');
       priceInput.type = 'number';
       priceInput.step = '0.01';
       priceInput.min = '0';
-      priceInput.placeholder = '例如: 3.5';
+      priceInput.placeholder = '史低';
       priceInput.value = game.history_low_price || '';
+      priceInput.title = '设置史低价格';
 
       const saveBtn = document.createElement('button');
       saveBtn.className = 'btn btn-sm btn-primary btn-save';
       saveBtn.textContent = '保存';
       saveBtn.onclick = function() { saveGameHistoryLow(game.id, this); };
 
-      priceInputWrapper.appendChild(priceInput);
-      priceInputWrapper.appendChild(saveBtn);
-      priceDiv.appendChild(priceLabel);
-      priceDiv.appendChild(priceInputWrapper);
-
-      // 右侧：推送设置
-      const pushDiv = document.createElement('div');
+      priceDiv.appendChild(priceInput);
+      priceDiv.appendChild(saveBtn);
 
       // 推送开关
+      const pushDiv = document.createElement('div');
       const pushLabel = document.createElement('label');
       const pushCheckbox = document.createElement('input');
       pushCheckbox.type = 'checkbox';
       pushCheckbox.className = 'game-push-enabled';
       pushCheckbox.checked = game.push_enabled || false;
+      pushCheckbox.title = '启用推送提醒';
       pushLabel.appendChild(pushCheckbox);
-      pushLabel.appendChild(document.createTextNode(' 启用推送提醒'));
+      pushLabel.appendChild(document.createTextNode('推送'));
+      pushDiv.appendChild(pushLabel);
 
-      // 推送阈值设置
-      const thresholdLabel = document.createElement('div');
-      thresholdLabel.textContent = '价格变动阈值（优先于全局设置）';
-      thresholdLabel.style.fontSize = '13px';
-      thresholdLabel.style.color = 'var(--text-secondary)';
-      thresholdLabel.style.marginTop = '8px';
-      thresholdLabel.style.marginBottom = '4px';
-
-      const percentWrapper = document.createElement('div');
-      percentWrapper.style.display = 'flex';
-      percentWrapper.style.gap = '12px';
-      percentWrapper.style.alignItems = 'center';
-      percentWrapper.style.flexWrap = 'wrap';
-
-      const dropWrapper = document.createElement('div');
-      dropWrapper.style.display = 'flex';
-      dropWrapper.style.alignItems = 'center';
-      dropWrapper.style.gap = '6px';
-
+      // 跌幅设置
+      const dropDiv = document.createElement('div');
       const dropLabel = document.createElement('span');
-      dropLabel.textContent = '跌幅';
-      dropLabel.style.fontSize = '14px';
+      dropLabel.className = 'game-settings-label';
+      dropLabel.textContent = '跌';
 
       const dropInput = document.createElement('input');
       dropInput.type = 'number';
       dropInput.className = 'game-drop-percent';
       dropInput.min = '0';
       dropInput.max = '100';
-      dropInput.placeholder = '例如: 10';
+      dropInput.placeholder = '10';
       dropInput.value = game.push_drop_percent || '';
+      dropInput.title = '跌幅百分比（优先于全局）';
 
       const dropUnit = document.createElement('span');
+      dropUnit.className = 'game-settings-label';
       dropUnit.textContent = '%';
-      dropUnit.style.fontSize = '14px';
 
-      dropWrapper.appendChild(dropLabel);
-      dropWrapper.appendChild(dropInput);
-      dropWrapper.appendChild(dropUnit);
+      dropDiv.appendChild(dropLabel);
+      dropDiv.appendChild(dropInput);
+      dropDiv.appendChild(dropUnit);
 
-      const riseWrapper = document.createElement('div');
-      riseWrapper.style.display = 'flex';
-      riseWrapper.style.alignItems = 'center';
-      riseWrapper.style.gap = '6px';
-
+      // 涨幅设置
+      const riseDiv = document.createElement('div');
       const riseLabel = document.createElement('span');
-      riseLabel.textContent = '涨幅';
-      riseLabel.style.fontSize = '14px';
+      riseLabel.className = 'game-settings-label';
+      riseLabel.textContent = '涨';
 
       const riseInput = document.createElement('input');
       riseInput.type = 'number';
       riseInput.className = 'game-rise-percent';
       riseInput.min = '0';
       riseInput.max = '100';
-      riseInput.placeholder = '例如: 5';
+      riseInput.placeholder = '5';
       riseInput.value = game.push_rise_percent || '';
+      riseInput.title = '涨幅百分比（优先于全局）';
 
       const riseUnit = document.createElement('span');
+      riseUnit.className = 'game-settings-label';
       riseUnit.textContent = '%';
-      riseUnit.style.fontSize = '14px';
 
-      riseWrapper.appendChild(riseLabel);
-      riseWrapper.appendChild(riseInput);
-      riseWrapper.appendChild(riseUnit);
-
-      percentWrapper.appendChild(dropWrapper);
-      percentWrapper.appendChild(riseWrapper);
-
-      pushDiv.appendChild(pushLabel);
-      pushDiv.appendChild(thresholdLabel);
-      pushDiv.appendChild(percentWrapper);
+      riseDiv.appendChild(riseLabel);
+      riseDiv.appendChild(riseInput);
+      riseDiv.appendChild(riseUnit);
 
       settingsRow.appendChild(priceDiv);
       settingsRow.appendChild(pushDiv);
+      settingsRow.appendChild(dropDiv);
+      settingsRow.appendChild(riseDiv);
 
       item.appendChild(nameSpan);
       item.appendChild(priceSpan);

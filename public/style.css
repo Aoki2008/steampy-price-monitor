@@ -931,81 +931,89 @@ body {
 
 /* 游戏史低价格列表 */
 .game-history-item {
-  padding: 16px;
+  padding: 10px 12px;
   background: var(--bg);
-  border-radius: 8px;
-  margin-bottom: 12px;
-  border: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 50px;
+}
+
+.game-history-item:first-child {
+  border-top: 1px solid var(--border);
+}
+
+.game-history-item:hover {
+  background: var(--bg-card-hover);
 }
 
 .game-history-item .game-name {
-  font-weight: 600;
-  font-size: 15px;
+  font-weight: 500;
+  font-size: 14px;
   color: var(--text);
-  margin-bottom: 8px;
-  display: block;
+  min-width: 120px;
+  flex-shrink: 0;
 }
 
 .game-history-item .current-price {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
-  margin-bottom: 12px;
-  display: block;
+  min-width: 100px;
+  flex-shrink: 0;
 }
 
 .game-settings-row {
   display: flex;
-  gap: 20px;
-  align-items: flex-start;
+  gap: 16px;
+  align-items: center;
+  flex: 1;
   flex-wrap: wrap;
 }
 
 .game-settings-row > div {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.game-settings-row > div:first-child {
-  flex: 0 0 auto;
-}
-
-.game-settings-row > div:last-child {
-  flex: 1;
-  min-width: 300px;
+  align-items: center;
+  gap: 6px;
 }
 
 .game-history-item input[type="number"] {
-  width: 120px;
-  padding: 8px 12px;
+  width: 80px;
+  padding: 5px 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--bg-card);
   color: var(--text);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .game-history-item input[type="checkbox"] {
-  margin-right: 6px;
+  margin: 0;
 }
 
 .game-history-item .btn-save {
-  padding: 8px 16px;
-  font-size: 13px;
-  margin-top: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
 }
 
 .game-history-item label {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text);
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  gap: 4px;
+  margin: 0;
+  white-space: nowrap;
 }
 
 .game-history-item .game-drop-percent,
 .game-history-item .game-rise-percent {
-  width: 140px !important;
+  width: 70px !important;
+}
+
+.game-settings-label {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 /* ========== 子选项 ========== */
