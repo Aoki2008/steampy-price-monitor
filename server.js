@@ -151,8 +151,17 @@ async function sendPushMe(title, content, pushKeysOverride) {
     pushKeys.push(config.pushme.pushKey);
   }
 
-  if (!config.pushme?.enabled || pushKeys.length === 0) {
-    return { success: false, reason: "PushMe未启用或未配置" };
+  console.log(`[PushMe] PushMe 启用状态: ${config.pushme?.enabled}`);
+  console.log(`[PushMe] 有效 Push Keys 数量: ${pushKeys.length}`);
+
+  if (!config.pushme?.enabled) {
+    console.log('[PushMe] 失败: PushMe 功能未启用');
+    return { success: false, reason: "PushMe功能未启用。请在设置中启用PushMe并保存配置。" };
+  }
+
+  if (pushKeys.length === 0) {
+    console.log('[PushMe] 失败: 没有有效的 Push Key');
+    return { success: false, reason: "未配置有效的Push Key。请在设置中添加至少一个Push Key并保存配置。" };
   }
 
   console.log(`[PushMe] 发送推送: ${title} (共 ${pushKeys.length} 个接收者)`);
@@ -697,11 +706,20 @@ app.put("/api/config", (req, res) => {
 // PushMe 测试推送
 app.post("/api/pushme/test", async (req, res) => {
   const providedKeys = req.body?.pushKeys;
+
+  console.log('[PushMe Test] 收到测试请求');
+  console.log('[PushMe Test] 提供的 keys 数量:', providedKeys?.length || 0);
+  console.log('[PushMe Test] PushMe 启用状态:', config.pushme?.enabled);
+  console.log('[PushMe Test] 配置中的 keys 数量:', config.pushme?.pushKeys?.length || 0);
+
   const result = await sendPushMe(
     "🔔 测试推送",
     `这是一条来自 **Steam Key 价格监控** 的测试消息\n\n⏰ ${new Date().toLocaleString()}`,
     providedKeys
   );
+
+  console.log('[PushMe Test] 测试结果:', result);
+
   res.json(result);
 });
 

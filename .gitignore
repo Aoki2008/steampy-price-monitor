@@ -4,3 +4,4 @@ data/config.json
 .snow/
 snow-chat-*.txt
 server.log
+.claude/settings.local.json

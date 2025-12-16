@@ -947,15 +947,35 @@ async function saveSettings() {
 // PushMe 测试推送
 async function testPushMe() {
   try {
-    // 允许测试使用未保存的 keys：将当前窗口中的 pushKeys 作为测试参数提交
+    // 检查是否启用了 PushMe
+    const configRes = await fetch(`${API_BASE}/api/config`);
+    const config = await configRes.json();
+
+    if (!config.pushme?.enabled) {
+      alert("测试失败: PushMe 功能未启用。\n\n请在下方启用 PushMe 并点击\"保存设置\"后再测试。");
+      return;
+    }
+
+    // 获取当前的 pushKeys
+    const testKeys = (window.pushmeKeys || []).filter((k) => k && !k.includes("*"));
+
+    if (testKeys.length === 0) {
+      alert("测试失败: 未配置 Push Key。\n\n请在下方添加至少一个 Push Key 并点击\"保存设置\"后再测试。");
+      return;
+    }
+
+    // 发送测试请求
     const res = await fetch(`${API_BASE}/api/pushme/test`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pushKeys: (window.pushmeKeys || []).filter((k) => k && !k.includes("*")) }),
+      body: JSON.stringify({ pushKeys: testKeys }),
     });
+
     const result = await res.json();
+
     if (result.success) {
-      alert("测试推送已发送！请检查手机通知");
+      const msg = `测试推送已发送！\n\n发送成功: ${result.successCount}/${result.total}\n\n请检查手机通知。`;
+      alert(msg);
     } else {
       alert("推送失败: " + (result.reason || result.error || "未知错误"));
     }
