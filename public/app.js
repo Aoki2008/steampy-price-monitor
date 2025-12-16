@@ -862,13 +862,6 @@ async function loadSettings() {
     // 史低提醒
     document.getElementById("pushme-history-low-alert").checked =
       pushme.historyLowAlert?.enabled || false;
-    // 价格变动提醒
-    document.getElementById("pushme-price-change-alert").checked =
-      pushme.priceChangeAlert?.enabled || false;
-    document.getElementById("pushme-drop-percent").value =
-      pushme.priceChangeAlert?.dropPercent || "";
-    document.getElementById("pushme-rise-percent").value =
-      pushme.priceChangeAlert?.risePercent || "";
     // 每日报告
     document.getElementById("pushme-daily-report").checked =
       pushme.dailyReport?.enabled || false;
@@ -920,14 +913,6 @@ async function saveSettings() {
     // 史低提醒
     historyLowAlert: {
       enabled: document.getElementById("pushme-history-low-alert").checked,
-    },
-    // 价格变动提醒
-    priceChangeAlert: {
-      enabled: document.getElementById("pushme-price-change-alert").checked,
-      dropPercent:
-        parseFloat(document.getElementById("pushme-drop-percent").value) || 0,
-      risePercent:
-        parseFloat(document.getElementById("pushme-rise-percent").value) || 0,
     },
     // 每日报告
     dailyReport: {

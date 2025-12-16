@@ -40,12 +40,6 @@ const DEFAULT_CONFIG = {
     historyLowAlert: {
       enabled: false,
     },
-    // 价格变动提醒（涨跌幅）
-    priceChangeAlert: {
-      enabled: false,
-      dropPercent: 10, // 跌幅超过此百分比时推送
-      risePercent: 0, // 涨幅超过此百分比时推送（0表示不提醒）
-    },
     // 每日报告
     dailyReport: {
       enabled: false,
@@ -236,39 +230,10 @@ async function checkPriceAlert(gameId, gameName, minPrice) {
   // 如果游戏级推送被关闭，则跳过
   if (gamePushEnabled === false) return;
 
-  // 1. 史低提醒（保留原有逻辑，使用游戏级史低）
+  // 史低提醒（保留原有逻辑，使用游戏级史低）
   if (pushme.historyLowAlert?.enabled) {
     if (historyLow !== null && minPrice <= historyLow) {
       alerts.push(`🏆 达到/低于史低 ¥${historyLow}`);
-    }
-  }
-
-  // 2. 价格变动提醒（涨跌幅）- 使用全局设置
-  if (pushme.priceChangeAlert?.enabled) {
-    const lastRecord = db.exec(
-      `SELECT min_price FROM price_records WHERE game_id = ? ORDER BY recorded_at DESC LIMIT 1 OFFSET 1`,
-      [gameId]
-    );
-    const lastPrice = lastRecord[0]?.values[0]?.[0];
-    if (lastPrice && lastPrice > 0) {
-      const changePercent = ((minPrice - lastPrice) / lastPrice) * 100;
-      const dropPercent = pushme.priceChangeAlert?.dropPercent || 0;
-      const risePercent = pushme.priceChangeAlert?.risePercent || 0;
-
-      if (dropPercent > 0 && changePercent <= -dropPercent) {
-        alerts.push(
-          `📉 下跌 ${Math.abs(changePercent).toFixed(1)}%（¥${lastPrice.toFixed(
-            2
-          )} → ¥${minPrice.toFixed(2)}）`
-        );
-      }
-      if (risePercent > 0 && changePercent >= risePercent) {
-        alerts.push(
-          `📈 上涨 ${changePercent.toFixed(1)}%（¥${lastPrice.toFixed(
-            2
-          )} → ¥${minPrice.toFixed(2)}）`
-        );
-      }
     }
   }
 
@@ -702,17 +667,6 @@ app.put("/api/config", (req, res) => {
       if (!config.pushme.historyLowAlert) config.pushme.historyLowAlert = {};
       if (typeof pushme.historyLowAlert.enabled === "boolean")
         config.pushme.historyLowAlert.enabled = pushme.historyLowAlert.enabled;
-    }
-
-    // 价格变动提醒
-    if (pushme.priceChangeAlert) {
-      if (!config.pushme.priceChangeAlert) config.pushme.priceChangeAlert = {};
-      if (typeof pushme.priceChangeAlert.enabled === "boolean")
-        config.pushme.priceChangeAlert.enabled = pushme.priceChangeAlert.enabled;
-      if (typeof pushme.priceChangeAlert.dropPercent === "number")
-        config.pushme.priceChangeAlert.dropPercent = pushme.priceChangeAlert.dropPercent;
-      if (typeof pushme.priceChangeAlert.risePercent === "number")
-        config.pushme.priceChangeAlert.risePercent = pushme.priceChangeAlert.risePercent;
     }
 
     if (pushme.dailyReport) {
