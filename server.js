@@ -17,6 +17,43 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
+// 确保 logs 目录存在
+const logsDir = path.join(__dirname, "logs");
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+
+// ========== 日志工具函数 ==========
+function getLogFileName() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return path.join(logsDir, `${year}-${month}-${day}.log`);
+}
+
+function writeLog(category, message, data = null) {
+  // 检查日志开关，如果未启用则只输出到控制台
+  if (!config.enableLog) {
+    return;
+  }
+
+  const timestamp = new Date().toLocaleString('zh-CN', { hour12: false });
+  let logMessage = `[${timestamp}] [${category}] ${message}`;
+
+  if (data) {
+    logMessage += '\n' + JSON.stringify(data, null, 2);
+  }
+
+  logMessage += '\n' + '-'.repeat(80) + '\n';
+
+  // 同时输出到控制台和文件
+  console.log(logMessage);
+
+  const logFile = getLogFileName();
+  fs.appendFileSync(logFile, logMessage, 'utf8');
+}
+
 // ========== SQLite 数据库 ==========
 const DB_PATH = path.join(dataDir, "prices.db");
 const CONFIG_PATH = path.join(dataDir, "config.json");
@@ -31,6 +68,7 @@ const DEFAULT_CONFIG = {
   dataRetentionDays: 365,
   apiHost: "steampy.com",
   apiPath: "/xboot/steamKeySale/listSale",
+  enableLog: false, // 是否启用日志记录（默认关闭）
   // 企业微信机器人推送配置
   pushme: {
     enabled: false,
@@ -653,63 +691,6 @@ app.get("/api/stats/:gameId", (req, res) => {
   });
 });
 
-app.get("/api/analysis/:gameId", (req, res) => {
-  const gid = req.params.gameId;
-  const map = (r, cols) =>
-    r[0]?.values.map((row) =>
-      Object.fromEntries(cols.map((c, i) => [c, row[i]]))
-    ) || [];
-
-  const hourly = db.exec(
-    `SELECT strftime('%Y-%m-%d %H:00', recorded_at) as h, AVG(min_price), MIN(min_price), MAX(min_price), AVG(seller_count) FROM price_records WHERE game_id = ? AND recorded_at > datetime('now', '-1 day') GROUP BY h ORDER BY h`,
-    [gid]
-  );
-  const daily = db.exec(
-    `SELECT date(recorded_at) as d, AVG(min_price), MIN(min_price), MAX(min_price), AVG(seller_count), AVG(stock_count) FROM price_records WHERE game_id = ? AND recorded_at > datetime('now', '-30 days') GROUP BY d ORDER BY d`,
-    [gid]
-  );
-  const weekly = db.exec(
-    `SELECT strftime('%Y-W%W', recorded_at) as w, AVG(min_price), MIN(min_price), MAX(min_price), AVG(seller_count) FROM price_records WHERE game_id = ? AND recorded_at > datetime('now', '-84 days') GROUP BY w ORDER BY w`,
-    [gid]
-  );
-  const monthly = db.exec(
-    `SELECT strftime('%Y-%m', recorded_at) as m, AVG(min_price), MIN(min_price), MAX(min_price), AVG(seller_count) FROM price_records WHERE game_id = ? AND recorded_at > datetime('now', '-365 days') GROUP BY m ORDER BY m`,
-    [gid]
-  );
-  const dist = db.exec(
-    `SELECT CASE WHEN min_price < 5 THEN '0-5' WHEN min_price < 10 THEN '5-10' WHEN min_price < 20 THEN '10-20' WHEN min_price < 50 THEN '20-50' ELSE '50+' END as r, COUNT(*) FROM price_records WHERE game_id = ? GROUP BY r`,
-    [gid]
-  );
-  const vol = db.exec(
-    `SELECT AVG(min_price), MIN(min_price), MAX(min_price), COUNT(*) FROM price_records WHERE game_id = ?`,
-    [gid]
-  );
-
-  res.json({
-    hourly: map(hourly, ["hour", "avg_min", "min", "max", "avg_sellers"]),
-    daily: map(daily, [
-      "day",
-      "avg_min",
-      "min",
-      "max",
-      "avg_sellers",
-      "avg_stock",
-    ]),
-    weekly: map(weekly, ["week", "avg_min", "min", "max", "avg_sellers"]),
-    monthly: map(monthly, ["month", "avg_min", "min", "max", "avg_sellers"]),
-    distribution: map(dist, ["price_range", "count"]),
-    volatility: vol[0]?.values[0]
-      ? {
-          mean: vol[0].values[0][0],
-          min: vol[0].values[0][1],
-          max: vol[0].values[0][2],
-          range: vol[0].values[0][2] - vol[0].values[0][1],
-          count: vol[0].values[0][3],
-        }
-      : null,
-  });
-});
-
 app.get("/api/config", (req, res) => {
   res.json({
     ...config,
@@ -729,7 +710,7 @@ app.get("/api/config", (req, res) => {
 });
 
 app.put("/api/config", (req, res) => {
-  const { accessToken, collectInterval, dataRetentionDays, pushme } = req.body;
+  const { accessToken, collectInterval, dataRetentionDays, enableLog, pushme } = req.body;
   let restart = false;
   let restartDailyReport = false;
 
@@ -850,6 +831,103 @@ app.post("/api/collect/:gameId", async (req, res) => {
 app.post("/api/cleanup", (req, res) => {
   cleanOldData();
   res.json({ success: true });
+});
+
+// ========== 游戏搜索代理接口 ==========
+// 搜索游戏列表（代理到 steampy.com）
+app.get("/api/search/games", async (req, res) => {
+  const { gameName, pageNumber = 1, pageSize = 15, sort = "createTime", order = "asc" } = req.query;
+
+  writeLog('SEARCH', `开始搜索游戏`, {
+    gameName,
+    pageNumber,
+    pageSize,
+    sort,
+    order
+  });
+
+  if (!gameName) {
+    writeLog('SEARCH', '搜索失败：搜索关键字为空');
+    return res.status(400).json({ success: false, message: "搜索关键字不能为空" });
+  }
+
+  try {
+    const url = `https://steampy.com/xboot/steamApp/listName?gameName=${encodeURIComponent(gameName)}&pageNumber=${pageNumber}&pageSize=${pageSize}&sort=${sort}&order=${order}`;
+
+    writeLog('SEARCH', `请求搜索接口`, { url });
+
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "APPAPK",
+        "Connection": "Keep-Alive",
+        "Accept-Encoding": "gzip",
+        "accessToken": config.accessToken
+      }
+    });
+
+    const data = await response.json();
+
+    writeLog('SEARCH', `搜索接口返回数据`, {
+      success: data.success,
+      resultCount: data.result?.content?.length || 0,
+      totalPages: data.result?.totalPages,
+      games: data.result?.content?.map(g => ({
+        appId: g.appId,
+        gameName: g.gameName,
+        rating: g.rating
+      }))
+    });
+
+    res.json(data);
+  } catch (error) {
+    writeLog('SEARCH', `搜索游戏失败: ${error.message}`, { error: error.stack });
+    console.error("搜索游戏失败:", error);
+    res.status(500).json({ success: false, message: error.message || "搜索失败" });
+  }
+});
+
+// 获取keyByAppId（代理到 steampy.com）- 用于获取正确的游戏ID
+app.get("/api/search/keybyappid", async (req, res) => {
+  const { appId } = req.query;
+
+  writeLog('KEYBYAPPID', `请求keyByAppId`, { appId });
+
+  if (!appId) {
+    writeLog('KEYBYAPPID', '获取keyByAppId失败：AppID为空');
+    return res.status(400).json({ success: false, message: "AppID不能为空" });
+  }
+
+  try {
+    const url = `https://steampy.com/xboot/steamGame/keyByAppId?appId=${appId}&pageNumber=1&pageSize=100&sort=basicFlag&order=desc`;
+
+    writeLog('KEYBYAPPID', `请求keyByAppId接口`, { url });
+
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "APPAPK",
+        "Connection": "Keep-Alive",
+        "Accept-Encoding": "gzip",
+        "accessToken": config.accessToken
+      }
+    });
+
+    const data = await response.json();
+
+    writeLog('KEYBYAPPID', `keyByAppId接口返回数据`, {
+      success: data.success,
+      code: data.code,
+      message: data.message,
+      totalElements: data.result?.totalElements,
+      gameId: data.result?.content?.[0]?.id,
+      gameName: data.result?.content?.[0]?.gameName
+    });
+
+    res.json(data);
+  } catch (error) {
+    writeLog('KEYBYAPPID', `获取keyByAppId失败: ${error.message}`, { error: error.stack });
+    console.error("获取keyByAppId失败:", error);
+    res.status(500).json({ success: false, message: error.message || "获取keyByAppId失败" });
+  }
 });
 
 app.get("/api/db-stats", (req, res) => {

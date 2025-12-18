@@ -5,3 +5,4 @@ data/config.json
 snow-chat-*.txt
 server.log
 .claude/
+logs/

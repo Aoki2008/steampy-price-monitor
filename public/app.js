@@ -9,6 +9,12 @@ let currentPage = 1;
 const pageSize = 20;
 let allPrices = [];
 
+// 搜索状态
+let searchTimeout = null;
+let currentSearchPage = 1;
+let searchResults = [];
+let isSearching = false;
+
 // API 基础地址
 const API_BASE = "";
 
@@ -28,6 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   initPeriodButtons();
   loadGames();
+  initSearchInput();
 
   // 每分钟自动刷新
   setInterval(refreshData, 60000);
@@ -53,6 +60,209 @@ function updateThemeButton(theme) {
   const btn = document.getElementById("btn-theme");
   if (btn) {
     btn.textContent = theme === "dark" ? "亮色" : "暗色";
+  }
+}
+
+// ========== 游戏搜索功能 ==========
+function initSearchInput() {
+  const searchInput = document.getElementById("game-search-input");
+  const searchResults = document.getElementById("search-results");
+
+  if (!searchInput || !searchResults) return;
+
+  // 输入事件 - 防抖处理
+  searchInput.addEventListener("input", (e) => {
+    const keyword = e.target.value.trim();
+
+    // 清除之前的定时器
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // 如果输入为空，隐藏搜索结果
+    if (!keyword) {
+      searchResults.classList.remove("show");
+      return;
+    }
+
+    // 防抖：500ms 后执行搜索
+    searchTimeout = setTimeout(() => {
+      searchGames(keyword);
+    }, 500);
+  });
+
+  // 点击外部关闭搜索结果
+  document.addEventListener("click", (e) => {
+    if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+      searchResults.classList.remove("show");
+    }
+  });
+
+  // 聚焦时如果有内容则显示结果
+  searchInput.addEventListener("focus", () => {
+    if (searchInput.value.trim() && searchResults.children.length > 0) {
+      searchResults.classList.add("show");
+    }
+  });
+}
+
+// 调用搜索列表接口
+async function searchGames(keyword, page = 1) {
+  if (isSearching) return;
+
+  isSearching = true;
+  const searchResultsDiv = document.getElementById("search-results");
+
+  try {
+    // 显示加载状态
+    searchResultsDiv.innerHTML = '<div class="search-loading">搜索中...</div>';
+    searchResultsDiv.classList.add("show");
+
+    // 调用本地代理接口
+    const response = await fetch(
+      `${API_BASE}/api/search/games?gameName=${encodeURIComponent(keyword)}&pageNumber=${page}&pageSize=15&sort=createTime&order=asc`
+    );
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.message || "搜索失败");
+    }
+
+    const results = data.result?.content || [];
+    searchResults = results;
+    currentSearchPage = page;
+
+    // 渲染搜索结果
+    renderSearchResults(results, data.result);
+  } catch (error) {
+    console.error("搜索游戏失败:", error);
+    searchResultsDiv.innerHTML = `<div class="search-error">搜索失败: ${escapeHtml(error.message)}</div>`;
+  } finally {
+    isSearching = false;
+  }
+}
+
+// 渲染搜索结果列表
+function renderSearchResults(results, resultMeta) {
+  const searchResultsDiv = document.getElementById("search-results");
+
+  if (!results || results.length === 0) {
+    searchResultsDiv.innerHTML = '<div class="search-empty">未找到相关游戏</div>';
+    return;
+  }
+
+  let html = '<div class="search-results-list">';
+
+  results.forEach((game) => {
+    const appId = escapeHtml(game.appId || "");
+    const gameName = escapeHtml(game.gameName || "未知游戏");
+    const rating = game.rating ? game.rating.toFixed(2) : "N/A";
+
+    html += `
+      <div class="search-result-item" data-app-id="${appId}" data-game-name="${gameName}">
+        <div class="search-result-info">
+          <div class="search-result-name">${gameName}</div>
+          <div class="search-result-meta">
+            <span>AppID: ${appId}</span>
+            ${game.rating ? `<span class="rating">评分: ${rating}</span>` : ""}
+          </div>
+        </div>
+        <button class="btn-add-from-search" onclick="addGameFromSearch('${appId}', '${gameName}', event)">
+          添加
+        </button>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+
+  // 添加分页信息
+  if (resultMeta && resultMeta.totalPages > 1) {
+    html += `
+      <div class="search-pagination">
+        <span>第 ${currentSearchPage}/${resultMeta.totalPages} 页</span>
+        ${currentSearchPage > 1 ? '<button class="btn-sm" onclick="searchPrevPage()">上一页</button>' : ""}
+        ${!resultMeta.last ? '<button class="btn-sm" onclick="searchNextPage()">下一页</button>' : ""}
+      </div>
+    `;
+  }
+
+  searchResultsDiv.innerHTML = html;
+}
+
+// 搜索分页 - 上一页
+function searchPrevPage() {
+  const keyword = document.getElementById("game-search-input").value.trim();
+  if (keyword && currentSearchPage > 1) {
+    searchGames(keyword, currentSearchPage - 1);
+  }
+}
+
+// 搜索分页 - 下一页
+function searchNextPage() {
+  const keyword = document.getElementById("game-search-input").value.trim();
+  if (keyword) {
+    searchGames(keyword, currentSearchPage + 1);
+  }
+}
+
+// 从搜索结果添加游戏（需要先调用 keyByAppId 接口获取正确的游戏 ID）
+async function addGameFromSearch(appId, gameName, event) {
+  if (event) {
+    event.stopPropagation();
+  }
+
+  const button = event.target;
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "获取详情...";
+
+  try {
+    // 调用 keyByAppId 接口获取用于价格采集的正确游戏 ID
+    const keyByAppIdResponse = await fetch(
+      `${API_BASE}/api/search/keybyappid?appId=${appId}`
+    );
+
+    const keyByAppIdData = await keyByAppIdResponse.json();
+
+    if (!keyByAppIdData.success) {
+      throw new Error(keyByAppIdData.message || "获取游戏信息失败");
+    }
+
+    // 从返回的数据中获取正确的游戏 ID（用于价格采集）
+    const gameInfo = keyByAppIdData.result?.content?.[0];
+    const steampyGameId = gameInfo?.id;
+
+    if (!steampyGameId) {
+      throw new Error("该游戏暂无可监控的价格数据");
+    }
+
+    // 使用正确的游戏 ID 和游戏名称添加游戏
+    button.textContent = "添加中...";
+    const addResponse = await fetch(`${API_BASE}/api/games`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: steampyGameId, name: gameName }),
+    });
+
+    if (!addResponse.ok) {
+      const errorData = await addResponse.json();
+      throw new Error(errorData.error || "添加游戏失败");
+    }
+
+    // 成功后刷新游戏列表并关闭搜索结果
+    button.textContent = "✓ 已添加";
+    setTimeout(() => {
+      loadGames();
+      document.getElementById("search-results").classList.remove("show");
+      document.getElementById("game-search-input").value = "";
+    }, 1000);
+  } catch (error) {
+    console.error("添加游戏失败:", error);
+    alert(`添加失败: ${error.message}`);
+    button.textContent = originalText;
+    button.disabled = false;
   }
 }
 
