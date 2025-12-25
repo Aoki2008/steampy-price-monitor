@@ -29,6 +29,17 @@ function escapeHtml(unsafe) {
     .replace(/'/g, "&#039;");
 }
 
+// 转义 JavaScript 字符串（用于 onclick 等属性中的字符串）
+function escapeJsString(unsafe) {
+  if (unsafe === null || unsafe === undefined) return '';
+  return String(unsafe)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r');
+}
+
 // ========== 初始化 ==========
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
@@ -158,6 +169,9 @@ function renderSearchResults(results, resultMeta) {
     const appId = escapeHtml(game.appId || "");
     const gameName = escapeHtml(game.gameName || "未知游戏");
     const rating = game.rating ? game.rating.toFixed(2) : "N/A";
+    // 用于 onclick 属性的安全转义
+    const appIdJs = escapeJsString(game.appId || "");
+    const gameNameJs = escapeJsString(game.gameName || "未知游戏");
 
     html += `
       <div class="search-result-item" data-app-id="${appId}" data-game-name="${gameName}">
@@ -168,7 +182,7 @@ function renderSearchResults(results, resultMeta) {
             ${game.rating ? `<span class="rating">评分: ${rating}</span>` : ""}
           </div>
         </div>
-        <button class="btn-add-from-search" onclick="addGameFromSearch('${appId}', '${gameName}', event)">
+        <button class="btn-add-from-search" onclick="addGameFromSearch('${appIdJs}', '${gameNameJs}', event)">
           添加
         </button>
       </div>
